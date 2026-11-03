@@ -11,6 +11,7 @@ jobs:
   unit:
     name: API and web tests (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       matrix:
         node: [20, 24]
@@ -40,6 +41,7 @@ jobs:
   mysql:
     name: API on real MySQL 8.4
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -130,8 +130,13 @@ describe('require_deployable_main', () => {
     let branch: string | null;
     try {
       branch = git(REPO, 'symbolic-ref', '--quiet', '--short', 'HEAD');
-    } catch {
-      branch = null; // detached
+    } catch (e) {
+      // symbolic-ref exits 1 for a detached HEAD and 128 outside a git
+      // checkout (a downloaded archive); anything else is a real error.
+      const status = (e as { status?: number }).status;
+      if (status === 128) return; // not a checkout: nothing to prove
+      if (status !== 1) throw e;
+      branch = null;
     }
     if (branch === 'main') return; // nothing to prove from main
     const r = guard(REPO);
