@@ -1,0 +1,16 @@
+[Unit]
+Description=Daily pull of PHT database backups from the server
+
+[Timer]
+# Twice daily. The server dumps at 03:00 its own time; if this machine is in a
+# different timezone, a single fixed local time could land before the server's
+# run. Two runs pick up each night's dump within ~12h regardless of the offset
+# between the two machines.
+OnCalendar=*-*-* 05:30:00
+OnCalendar=*-*-* 17:30:00
+# Catch up after the laptop was asleep or powered off at the scheduled time.
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

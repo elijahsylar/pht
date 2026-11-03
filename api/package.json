@@ -1,0 +1,36 @@
+{
+  "name": "pht-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend for PHT, a minimal daily habit checklist",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "rm -rf dist && tsc",
+    "start": "node dist/index.js",
+    "migrate": "tsx src/db/migrate.ts",
+    "test": "tsc -p tsconfig.test.json --noEmit && vitest run",
+    "test:mysql": "bash tests/integration/run-mysql.sh",
+    "dev:fake": "tsx dev/fakeServer.ts"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.11.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.7.5",
+    "@types/supertest": "^6.0.3",
+    "supertest": "^7.3.1",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.21",
+    "vitest": "^3.2.7"
+  }
+}

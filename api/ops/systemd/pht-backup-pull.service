@@ -1,0 +1,9 @@
+[Unit]
+Description=Pull PHT database backups from the server to this machine
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Adjust to where this repository is checked out.
+ExecStart=%h/pht/api/ops/pht-backup-pull.sh

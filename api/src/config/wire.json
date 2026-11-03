@@ -1,0 +1,79 @@
+{
+  "lookbackDays": 30,
+  "timeoutMs": 8000,
+  "maxBytes": 6000000,
+  "weights": {"popularity": 4, "recency": 6},
+  "tiers": [
+    {
+      "tag": "Claude Code",
+      "tier": "A",
+      "weight": 12,
+      "keywords": ["claude code", "claude-code"],
+      "contextKeywords": [],
+      "context": []
+    },
+    {
+      "tag": "Anthropic",
+      "tier": "A",
+      "weight": 10,
+      "keywords": ["anthropic", "claude api", "claude agent sdk", "claude developer platform", "claude.ai", "claude opus", "claude sonnet", "claude haiku", "model context protocol"],
+      "contextKeywords": ["claude", "claudes", "mcp", "mcp server", "mcp servers", "opus", "sonnet", "haiku"],
+      "context": ["ai", "a.i.", "llm", "llms", "gpt", "chatgpt", "language model", "language models", "model", "models", "anthropic", "openai", "gemini", "genai", "generative", "machine learning", "neural", "chatbot", "chatbots", "assistant", "agent", "agents", "agentic", "prompt", "prompts", "api", "sdk", "code", "coding", "programming", "developer", "developers", "software", "terminal", "cli", "token", "tokens", "context window", "opus", "sonnet", "haiku", "copilot", "cursor", "codex", "subagent", "subagents", "skills", "tool", "tools", "server", "servers"]
+    },
+    {
+      "tag": "AI engineering",
+      "tier": "B",
+      "weight": 4,
+      "keywords": ["agentic coding", "agentic engineering", "agentic programming", "ai coding", "ai-assisted programming", "ai-assisted coding", "ai-assisted development", "ai-assisted software", "ai-assisted engineering", "coding agent", "coding agents", "coding assistant", "coding assistants", "ai pair programming", "vibe coding", "vibe-coding", "vibe coded", "prompt engineering", "context engineering", "llm evals", "llm evaluation", "llm evaluations", "evals for llms", "ai code review", "ai code reviews", "llm app", "llm apps", "llm application", "llm applications", "llm-powered", "ai engineer", "ai engineers", "ai engineering", "agent harness", "tool calling", "subagents", "ai-written code", "ai-generated code", "llm-generated code"],
+      "contextKeywords": ["code review", "code reviews", "developer productivity", "software engineer", "software engineers", "software engineering", "software developers", "programmers", "junior developers", "junior engineers", "engineering careers", "career", "careers", "evals", "evaluations", "testing", "prompting", "workflow", "workflows", "harness", "harnesses", "pull requests"],
+      "context": ["ai", "a.i.", "llm", "llms", "gpt", "chatgpt", "language model", "language models", "anthropic", "openai", "gemini", "genai", "generative ai", "machine learning", "chatbot", "chatbots", "agent", "agents", "agentic", "copilot", "claude code", "opus", "sonnet", "haiku"]
+    }
+  ],
+  "contextHosts": ["anthropic.com", "claude.com", "claude.ai", "claude.dev"],
+  "competitors": ["cursor", "github copilot", "copilot", "openai codex", "codex", "gemini cli", "windsurf", "devin", "replit agent", "replit"],
+  "exclude": [
+    {
+      "name": "Math & theorem proving",
+      "keywords": ["mathematics", "mathematical", "mathematician", "mathematicians", "math olympiad", "imo", "theorem", "theorems", "proof", "proofs", "lean prover", "lean 4", "lean4", "mathlib", "conjecture", "conjectures", "frontiermath", "erdős", "erdos"]
+    },
+    {
+      "name": "Business & funding",
+      "keywords": ["raises", "funding round", "series a", "series b", "series c", "series d", "series e", "series f", "valuation", "valued at", "ipo", "acquisition", "acquires", "earnings", "revenue", "layoffs", "lays off", "bankruptcy", "bankrupt", "stock", "stocks"]
+    },
+    {
+      "name": "Chips & hardware",
+      "keywords": ["gpu", "gpus", "chip", "chips", "chipmaker", "semiconductor", "semiconductors", "nvidia", "tpu", "tpus", "data center", "data centers", "datacenter", "datacenters", "compute cluster", "fab", "fabs"]
+    }
+  ],
+  "hackerNews": {
+    "id": "hn",
+    "name": "Hacker News",
+    "url": "https://hn.algolia.com/api/v1/search",
+    "weight": 0,
+    "tierBMinPoints": 75,
+    "queries": [
+      {"query": "Claude", "minPoints": 30},
+      {"query": "Anthropic", "minPoints": 30},
+      {"query": "Claude Code", "minPoints": 30},
+      {"query": "MCP", "minPoints": 30},
+      {"query": "agentic coding", "minPoints": 75},
+      {"query": "AI coding", "minPoints": 75},
+      {"query": "coding agent", "minPoints": 75},
+      {"query": "prompt engineering", "minPoints": 75},
+      {"query": "context engineering", "minPoints": 75},
+      {"query": "LLM evals", "minPoints": 75},
+      {"query": "AI code review", "minPoints": 75},
+      {"query": "vibe coding", "minPoints": 75}
+    ]
+  },
+  "feeds": [
+    {"id": "anthropic-engineering", "name": "Anthropic Engineering", "url": "https://www.anthropic.com/engineering", "weight": 9, "kind": "page", "linkPrefix": "/engineering/", "aiContext": true, "minIntervalHours": 20, "tag": "Anthropic"},
+    {"id": "anthropic-news", "name": "Anthropic", "url": "https://www.anthropic.com/news", "weight": 8, "kind": "page", "linkPrefix": "/news/", "aiContext": true, "minIntervalHours": 20, "tag": "Anthropic"},
+    {"id": "claude-code-releases", "name": "Claude Code releases", "url": "https://github.com/anthropics/claude-code/releases.atom", "weight": 2, "kind": "github-releases", "product": "Claude Code", "aiContext": true, "tag": "Claude Code"},
+    {"id": "simon-claude-code", "name": "Simon Willison", "url": "https://simonwillison.net/tags/claude-code.atom", "weight": 7, "aiContext": true},
+    {"id": "simon-claude", "name": "Simon Willison", "url": "https://simonwillison.net/tags/claude.atom", "weight": 7, "aiContext": true},
+    {"id": "simon-ai-programming", "name": "Simon Willison", "url": "https://simonwillison.net/tags/ai-assisted-programming.atom", "weight": 7},
+    {"id": "latent-space", "name": "Latent Space", "url": "https://www.latent.space/feed", "weight": 5},
+    {"id": "pragmatic-engineer", "name": "The Pragmatic Engineer", "url": "https://newsletter.pragmaticengineer.com/feed", "weight": 5}
+  ]
+}

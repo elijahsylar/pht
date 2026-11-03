@@ -1,0 +1,15 @@
+node_modules
+dist
+.env
+*.log
+.DS_Store
+
+# Env files — never commit. See .env.example for required vars.
+.env.*
+!.env.example
+
+# Local agent/editor settings — may contain credentials in saved allow-rules
+.claude/
+
+# TypeScript incremental build artifact
+*.tsbuildinfo

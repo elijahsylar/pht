@@ -1,0 +1,2776 @@
+/* The PHT desktop on top of 98.css. No inline styles anywhere (CSP): every
+   value set from code goes through CSSOM (grid columns, float positions).
+
+   Desktop (≥ 900px): three windows in a row above a taskbar, grips between
+   them. Phone (< 900px): the windows stack, the page scrolls, the taskbar
+   keeps Start and the clock. Everything pinned to an edge is inset by
+   env(safe-area-inset-*), which is 0 in an ordinary tab and the notch / home
+   indicator when installed on an iPhone.
+
+   Wallpapers are original CSS artwork. The 7-segment digits are DSEG7 (SIL
+   OFL 1.1, public/vendor/dseg/DSEG-LICENSE.txt), self-hosted; LCD words are
+   a bold monospace, which reads better than 14-segment letters. */
+
+@font-face {
+  font-family: 'DSEG7';
+  src: url('/vendor/dseg/DSEG7Classic-Bold.woff2') format('woff2');
+  font-display: swap;
+}
+
+:root {
+  --deck: #1b1b20;
+  --deck-hi: #2a2a31;
+  --deck-text: #ececec;
+  --lcd-bg: #0a1a0f;
+  --lcd-text: #6dff95;
+  --lcd-dim: #9fd3ae;
+  --led-off: #2b2b31;
+  --led-on: #3dff7a;
+  --amber: #ffb000;
+  --seg-bg: #1c0806;
+  --seg-on: #ff5a48;
+  --seg-zero: #c9574b;
+  --tuner-bg: #06161f;
+  --tuner-text: #8fefff;
+  --tuner-dim: #9cc6d2;
+  --paper: #fffef4;
+  --paper-line: #c9d6ff;
+  --ink: #1d1d1d;
+  --pink: #ff4f9a;
+  --taskbar-h: 40px;
+  /* Body text everywhere. The 98 pixel font is only for title bars and the
+     taskbar, at its native 11px: scaled, its letters go condensed and uneven. */
+  --ui-font: system-ui, 'Segoe UI', 'DejaVu Sans', sans-serif;
+  --pixel-font: 'Pixelated MS Sans Serif', Arial, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: #008080;
+  font-family: var(--ui-font);
+  font-size: 13px;
+}
+
+/* 98.css puts its pixel font on these at 11px; body text here is the UI font. */
+.window,
+button,
+input,
+label,
+legend,
+li[role='tab'],
+option,
+select,
+table,
+textarea {
+  font-family: var(--ui-font);
+  font-size: 13px;
+  -webkit-font-smoothing: auto;
+}
+
+input::placeholder {
+  font-family: var(--ui-font);
+}
+
+/* The pixel font, at its native size: title bars and the taskbar. */
+.title-bar,
+.title-bar-text,
+.taskbar button {
+  font-family: var(--pixel-font);
+  font-size: 11px;
+  -webkit-font-smoothing: none;
+}
+
+#desktop {
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.desktop-loading,
+.desktop-offline {
+  color: #fff;
+  padding: 24px;
+  margin: 0;
+}
+
+.title-bar-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-bar-field {
+  min-height: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  color: #9a9a9a;
+  margin: 8px 0;
+  list-style: none;
+}
+
+/* ── wallpapers ─────────────────────────────────────────────────────────── */
+
+.wallpaper {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.wp-sky,
+.wp-floor {
+  display: none;
+}
+
+/* Synthwave: a striped horizon sun in a purple-to-pink sky, over a magenta
+   grid floor in perspective. */
+.wp-synthwave .wallpaper {
+  background: #12021f;
+}
+
+.wp-synthwave .wp-sky {
+  display: block;
+  position: absolute;
+  inset: 0 0 38% 0;
+  background:
+    radial-gradient(circle at 50% 100%, #ffd23f 0 11%, #ff8a3d 11% 18%, transparent 18.3%),
+    linear-gradient(to bottom, #12021f 0%, #3a0b5c 55%, #ff3d81 100%);
+}
+
+/* The sky's colour shows through these bands, which cut the lower half of
+   the sun into stripes. */
+.wp-synthwave .wp-sky::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 9%;
+  background: repeating-linear-gradient(to bottom, transparent 0 9px, #ff3d81 9px 13px);
+}
+
+.wp-synthwave .wp-floor {
+  display: block;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 38%;
+  overflow: hidden;
+  perspective: 280px;
+  perspective-origin: 50% 0;
+  background: #12021f;
+  border-top: 2px solid #ff2bd6;
+}
+
+.wp-synthwave .wp-grid {
+  position: absolute;
+  left: -60%;
+  right: -60%;
+  top: -36px;
+  height: 260%;
+  background:
+    repeating-linear-gradient(to right, transparent 0 78px, #ff2bd6 78px 80px),
+    repeating-linear-gradient(to bottom, transparent 0 34px, #ff2bd6 34px 36px);
+  transform: rotateX(62deg);
+  transform-origin: 50% 0;
+}
+
+/* Animate: the floor slides one grid square toward the viewer and repeats.
+   A transform animation only; no script runs it. */
+@keyframes wp-scroll {
+  from {
+    transform: rotateX(62deg) translateY(0);
+  }
+  to {
+    transform: rotateX(62deg) translateY(36px);
+  }
+}
+
+.wp-synthwave.wp-animate .wp-grid {
+  animation: wp-scroll 2.4s linear infinite;
+}
+
+/* Memphis: confetti — dots, squiggle stripes, triangles — on off-white. */
+.wp-memphis .wallpaper,
+.monitor-screen.wp-memphis {
+  background-color: #f6efe3;
+  background-image:
+    radial-gradient(#111 1.6px, transparent 1.8px),
+    linear-gradient(135deg, transparent 0 46%, #ff4f9a 46% 54%, transparent 54%),
+    linear-gradient(45deg, transparent 0 47%, #18c6c6 47% 53%, transparent 53%),
+    conic-gradient(from 210deg at 50% 50%, #ffd23f 0 60deg, transparent 60deg),
+    repeating-linear-gradient(-30deg, transparent 0 22px, rgb(52 72 255 / 0.18) 22px 26px);
+  background-size: 28px 28px, 170px 170px, 230px 230px, 260px 260px, auto;
+  background-position: 0 0, 30px 60px, 120px 10px, 60px 140px, 0 0;
+}
+
+.monitor-screen.wp-memphis {
+  background-size: 10px 10px, 60px 60px, 80px 80px, 90px 90px, auto;
+}
+
+.wp-teal .wallpaper,
+.monitor-screen.wp-teal {
+  background: #008080;
+}
+
+.monitor-screen.wp-synthwave {
+  background:
+    radial-gradient(circle at 50% 62%, #ffd23f 0 9%, #ff8a3d 9% 15%, transparent 15.5%),
+    repeating-linear-gradient(to right, transparent 0 14px, #ff2bd6 14px 15px) 0 62% / 100% 38% no-repeat,
+    linear-gradient(to bottom, #12021f 0%, #3a0b5c 40%, #ff3d81 62%, #12021f 62%);
+}
+
+/* Motion is opt-in, and never on a phone or for anyone who asks for less. */
+@media (prefers-reduced-motion: reduce) {
+  .wp-synthwave.wp-animate .wp-grid {
+    animation: none;
+  }
+}
+
+@media (max-width: 899px) {
+  .wp-synthwave.wp-animate .wp-grid {
+    animation: none;
+  }
+}
+
+/* ── the desk: windows on the snap grid ─────────────────────────────────── */
+
+.desk {
+  position: relative;
+  z-index: 1;
+}
+
+.win {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.win > .title-bar {
+  flex: none;
+  min-height: 24px;
+}
+
+.win-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 3px;
+  overflow: hidden;
+}
+
+.win:focus {
+  outline: none;
+}
+
+/* The dashed cells, shown only while a window is dragged or resized. */
+.snap-lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.snapping .snap-lines {
+  opacity: 1;
+}
+
+.snap-cell {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px dashed rgb(255 255 255 / 0.18);
+}
+
+/* Where the window will land: white = a free spot, green = swap, red = taken. */
+.snap-ghost {
+  position: absolute;
+  z-index: 6;
+  pointer-events: none;
+  box-sizing: border-box;
+  border: 2px dotted #fff;
+  outline: 2px dotted #000;
+  outline-offset: -4px;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.snap-ghost[hidden] {
+  display: none;
+}
+
+.snap-ghost.swap {
+  background: rgb(93 255 138 / 0.18);
+  border-color: #5dff8a;
+}
+
+.snap-ghost.bad {
+  background: rgb(255 74 61 / 0.18);
+  border-color: #ff4a3d;
+}
+
+.snap-ghost-msg {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  font: bold 12px var(--ui-font);
+  padding: 1px 6px;
+  color: #fff;
+  background: rgb(0 0 0 / 0.6);
+  text-shadow: 0 1px 2px #000;
+}
+
+.snap-ghost-msg:empty {
+  display: none;
+}
+
+/* Resize handles: every edge and corner; the 98 size grip drawn bottom-right. */
+.rh {
+  position: absolute;
+  z-index: 4;
+  touch-action: none;
+  user-select: none;
+}
+
+.rh-e,
+.rh-w {
+  top: 10px;
+  bottom: 10px;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+.rh-e {
+  right: -3px;
+}
+
+.rh-w {
+  left: -3px;
+}
+
+.rh-n,
+.rh-s {
+  left: 10px;
+  right: 10px;
+  cursor: ns-resize;
+}
+
+.rh-n {
+  top: -3px;
+  height: 6px;
+}
+
+.rh-s {
+  bottom: -3px;
+  height: 8px;
+}
+
+.rh-ne,
+.rh-nw,
+.rh-sw {
+  width: 14px;
+  height: 14px;
+}
+
+.rh-ne {
+  right: -3px;
+  top: -3px;
+  cursor: nesw-resize;
+}
+
+.rh-nw {
+  left: -3px;
+  top: -3px;
+  cursor: nwse-resize;
+}
+
+.rh-sw {
+  left: -3px;
+  bottom: -3px;
+  cursor: nesw-resize;
+}
+
+.rh-se {
+  right: -3px;
+  bottom: -3px;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, grey 50%, grey 56%, transparent 56%, transparent 66%, grey 66%, grey 72%, transparent 72%);
+}
+
+/* ── moving a window: the title bar ─────────────────────────────────────── */
+
+.win > .title-bar {
+  user-select: none;
+  touch-action: none;
+  cursor: move;
+}
+
+.win > .title-bar .title-bar-controls,
+.win > .title-bar button {
+  cursor: default;
+}
+
+.win > .title-bar:focus-visible {
+  outline: 1px dotted #fff;
+  outline-offset: -3px;
+}
+
+.snapping,
+.snapping * {
+  user-select: none;
+}
+
+/* ── LCDs and LEDs, shared by all three windows ────────────────────────── */
+
+.lcd {
+  font-family: ui-monospace, 'DejaVu Sans Mono', Menlo, Consolas, 'Courier New', monospace;
+  font-weight: bold;
+  background: var(--lcd-bg);
+  color: var(--lcd-text);
+  text-shadow: 0 0 6px rgb(45 255 106 / 0.55);
+  box-shadow:
+    inset 2px 2px #000,
+    inset -1px -1px #3b3b3b;
+  padding: 6px 10px;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.led {
+  display: block;
+  background: var(--led-off);
+  box-shadow:
+    inset 1px 1px #000,
+    inset -1px -1px #3a3a42;
+  border-radius: 1px;
+}
+
+.led.on {
+  background: var(--led-on);
+  box-shadow:
+    0 0 6px rgb(61 255 122 / 0.75),
+    inset -1px -1px #1fb553;
+}
+
+.led.today {
+  outline: 2px solid var(--amber);
+  outline-offset: 1px;
+}
+
+/* ── Today: the PHT-6 deck ──────────────────────────────────────────────── */
+
+.win-today,
+.win-weather {
+  container-type: inline-size;
+}
+
+.deck,
+.hist-deck {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: linear-gradient(var(--deck-hi), var(--deck));
+  color: var(--deck-text);
+  box-shadow:
+    inset 1px 1px grey,
+    inset 2px 2px #0a0a0a,
+    inset -1px -1px #fff,
+    inset -2px -2px #dfdfdf;
+}
+
+.deck-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-name {
+  display: block;
+  font-weight: bold;
+  font-size: 20px;
+  letter-spacing: 6px;
+  color: #f4f4f4;
+}
+
+.deck-date {
+  color: #ffb36b;
+  font-family: var(--ui-font);
+  font-size: 15px;
+  letter-spacing: normal;
+}
+
+.day-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.deck .day-step {
+  min-width: 22px;
+  min-height: 20px;
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.deck-lcd {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.deck .back-today {
+  min-width: 0;
+  padding: 2px 8px;
+}
+
+/* A past day being backfilled: the deck turns amber. */
+.deck.editing {
+  background: linear-gradient(#4a3108, #2c1d04);
+  box-shadow:
+    inset 1px 1px grey,
+    inset 2px 2px #0a0a0a,
+    inset -1px -1px #fff,
+    inset -2px -2px #dfdfdf,
+    inset 0 0 0 5px var(--amber);
+}
+
+.deck.editing .today-lcd {
+  background: #2a1a00;
+  color: var(--amber);
+  text-shadow: 0 0 6px rgb(255 176 0 / 0.6);
+}
+
+.deck.editing .deck-date {
+  color: #ffe3a8;
+}
+
+.today-lcd {
+  font-size: 20px;
+  letter-spacing: 2px;
+}
+
+.today-lcd.flash {
+  color: #fff27a;
+  text-shadow: 0 0 10px rgb(255 242 122 / 0.8);
+  animation: lcd-blink 0.4s steps(1, end) 4;
+}
+
+@keyframes lcd-blink {
+  50% {
+    color: transparent;
+    text-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .today-lcd.flash {
+    animation: none;
+  }
+}
+
+.strips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.strip {
+  flex: 1 1 0;
+  min-height: 54px;
+  max-height: 140px;
+  display: grid;
+  grid-template-columns: max-content minmax(60px, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  background: #24242a;
+  box-shadow:
+    inset 1px 1px #3c3c44,
+    inset -1px -1px #0b0b0c;
+}
+
+/* The latching key: a 98 button that stays down while the habit is done. */
+.deck .key {
+  align-self: stretch;
+  min-width: 96px;
+  min-height: 40px;
+  max-height: 72px;
+  padding: 0 12px;
+  font-family: var(--ui-font);
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  color: #1b1b1b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.deck .key[aria-pressed='true'] {
+  background: linear-gradient(#b8f5c8, #8de0a6);
+  box-shadow:
+    inset -1px -1px #fff,
+    inset 1px 1px #0a0a0a,
+    inset -2px -2px #dfdfdf,
+    inset 2px 2px grey;
+}
+
+.deck .key.busy {
+  cursor: progress;
+}
+
+.lamp {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #5b5b5b;
+  box-shadow: inset 1px 1px #222;
+}
+
+.key[aria-pressed='true'] .lamp {
+  background: #12d64a;
+  box-shadow: 0 0 6px #1aff5c;
+}
+
+.deck .habit-name {
+  min-width: 0;
+  min-height: 0;
+  padding: 4px 2px;
+  text-align: left;
+  background: none;
+  box-shadow: none;
+  color: var(--deck-text);
+  text-shadow: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  font-family: var(--ui-font);
+  font-size: 15px;
+  letter-spacing: normal;
+}
+
+@media (hover: hover) {
+  .deck .habit-name:hover {
+    text-decoration: underline;
+  }
+}
+
+.deck .habit-name:focus-visible {
+  outline: 1px dotted #fff;
+}
+
+.strip.done .habit-name {
+  color: #fff;
+  font-weight: bold;
+}
+
+.meter {
+  display: flex;
+  gap: 3px;
+  height: 28px;
+}
+
+.meter .led {
+  width: 10px;
+  height: 100%;
+}
+
+/* The streak counter: red 7-segment digits over their unlit "8"s. */
+.seg7 {
+  position: relative;
+  font-family: 'DSEG7', ui-monospace, 'Courier New', monospace;
+  font-size: 26px;
+  line-height: 1;
+  padding: 5px 8px;
+  background: var(--seg-bg);
+  box-shadow: inset 2px 2px #000;
+  text-align: right;
+}
+
+.seg-ghost {
+  color: #3a120e;
+}
+
+.seg-val {
+  position: absolute;
+  right: 8px;
+  top: 5px;
+  color: var(--seg-on);
+  text-shadow: 0 0 8px rgb(255 60 40 / 0.7);
+}
+
+.seg7.zero .seg-val {
+  color: var(--seg-zero);
+  text-shadow: none;
+}
+
+/* The note: a cassette J-card. */
+.jcard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--paper);
+  background-image: repeating-linear-gradient(to bottom, transparent 0 22px, var(--paper-line) 22px 23px);
+  border-left: 10px solid var(--pink);
+  color: var(--ink);
+}
+
+.jcard-side {
+  font-weight: bold;
+  white-space: nowrap;
+  letter-spacing: 1px;
+}
+
+.jcard .note-input,
+.jcard .learned-input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  font-size: 14px;
+  background: transparent;
+  box-shadow: none;
+  border-bottom: 1px solid #8a8a8a;
+}
+
+.jcard .note-input:focus,
+.jcard .learned-input:focus {
+  outline: 1px dotted #000;
+}
+
+/* SIDE B (what was learned): the same J-card under SIDE A, a teal spine. */
+.jcard-b {
+  border-left-color: #12a39a;
+}
+
+/* Today's status line ("Note saved", "Can't reach PHT") is read out, not
+   shown: the deck fills the window body. */
+.win-today .status-bar {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* A narrow Today window: smaller keys and LEDs, never a lost meter. */
+@container (max-width: 560px) {
+  .strip {
+    grid-template-columns: max-content minmax(50px, 1fr) auto auto;
+    gap: 8px;
+  }
+  .meter .led {
+    width: 7px;
+  }
+  .meter {
+    gap: 2px;
+  }
+  .seg7 {
+    font-size: 20px;
+  }
+}
+
+@container (max-width: 420px) {
+  .strip {
+    grid-template-columns: max-content minmax(44px, 1fr) auto auto;
+    gap: 6px;
+    padding: 6px;
+  }
+  .deck .key {
+    gap: 6px;
+    padding: 0 10px;
+    letter-spacing: 0;
+  }
+  .lamp {
+    width: 8px;
+    height: 8px;
+  }
+  .meter .led {
+    width: 5px;
+  }
+  .seg7 {
+    font-size: 17px;
+    padding: 4px 6px;
+  }
+  .seg-val {
+    right: 6px;
+    top: 4px;
+  }
+  .brand-name {
+    font-size: 16px;
+    letter-spacing: 3px;
+  }
+  .today-lcd {
+    font-size: 14px;
+  }
+}
+
+/* A very narrow window (the meters are 7 LEDs here too, see today.ts). */
+@container (max-width: 340px) {
+  .strip {
+    grid-template-columns: max-content minmax(40px, 1fr) auto auto;
+    gap: 5px;
+  }
+  .day-nav {
+    gap: 3px;
+  }
+  .deck-head {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .deck-lcd {
+    margin-left: 0;
+    flex-direction: row;
+    align-items: center;
+  }
+  .today-lcd {
+    font-size: 15px;
+  }
+}
+
+/* A short Today window: shorter strips and keys, the list scrolls above the
+   J-card, which always stays in view. */
+.jcard,
+.deck-head {
+  flex: none;
+}
+
+.deck.compact {
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.deck.compact .strips {
+  gap: 4px;
+}
+
+.deck.compact .strip {
+  flex: none;
+  min-height: 34px;
+  padding: 3px 8px;
+}
+
+.deck.compact .key {
+  min-height: 26px;
+  max-height: 30px;
+}
+
+.deck.compact .meter {
+  height: 18px;
+}
+
+.deck.compact .seg7 {
+  font-size: 17px;
+  padding: 3px 6px;
+}
+
+.deck.compact .seg-val {
+  right: 6px;
+  top: 3px;
+}
+
+.deck.compact .brand-name {
+  font-size: 16px;
+  letter-spacing: 3px;
+}
+
+.deck.compact .deck-date {
+  font-size: 13px;
+}
+
+.deck.compact .today-lcd {
+  font-size: 15px;
+}
+
+.deck.compact .jcard {
+  padding: 4px 10px;
+}
+
+/* ── History ────────────────────────────────────────────────────────────── */
+
+.matrix {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mrow {
+  display: grid;
+  grid-template-columns: minmax(70px, 150px) repeat(var(--days, 30), minmax(0, 1fr));
+  gap: 3px;
+  align-items: center;
+}
+
+.mrow .led {
+  height: 18px;
+}
+
+.mlabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 6px;
+}
+
+.mhead {
+  min-height: 16px;
+}
+
+/* Header: one cell per day; a writable one is a button that opens the day in
+   Today. A Monday's date overflows to the right over the next cells without
+   catching their clicks. */
+.mday {
+  position: relative;
+  align-self: stretch;
+  min-height: 16px;
+}
+
+.matrix button.mday {
+  min-width: 0;
+  min-height: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.matrix button.mday:hover,
+.matrix button.mday.viewing {
+  background: rgb(255 176 0 / 0.35);
+}
+
+.matrix button.mday:focus-visible {
+  outline: 1px dotted #fff;
+  outline-offset: 0;
+}
+
+.mdate {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 0;
+  color: #ffc77f;
+  font-size: 11px;
+  white-space: nowrap;
+  border-left: 1px solid #6a5a44;
+  padding-left: 3px;
+  pointer-events: none;
+}
+
+.mdate:empty {
+  display: none;
+}
+
+/* An LED is a toggle button for days in the backfill window. */
+.matrix button.led {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+}
+
+.matrix button.led:focus-visible {
+  outline: 2px dotted #fff;
+  outline-offset: 1px;
+}
+
+.matrix button.led.today:focus-visible {
+  outline-color: var(--amber);
+}
+
+/* Day 31 and older: read-only. */
+.led.old {
+  opacity: 0.35;
+}
+
+/* The day the Today deck is editing, in History and in the meters. */
+.led.viewing {
+  outline: 2px dashed var(--amber);
+  outline-offset: 1px;
+}
+
+.stats {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+}
+
+/* History in a short window: the notes paper shrinks first (to a few
+   lines), then the whole window scrolls; the LEDs get shorter. */
+.win-history .hist-deck {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.hist-deck.short {
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.hist-deck.short .mrow .led {
+  height: 12px;
+}
+
+.hist-deck.short .matrix {
+  gap: 3px;
+}
+
+.hist-deck.short .lcd-value {
+  font-size: 17px;
+}
+
+.stat.lcd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  white-space: normal;
+}
+
+.lcd-value {
+  font-family: 'DSEG7', ui-monospace, monospace;
+  font-weight: normal;
+  font-size: 22px;
+}
+
+.lcd-label {
+  font-family: 'Pixelated MS Sans Serif', Arial, sans-serif;
+  color: var(--lcd-dim);
+  text-shadow: none;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.jcard-paper {
+  flex: 1;
+  min-height: 56px;
+  overflow-y: auto;
+  background: var(--paper);
+  background-image: repeating-linear-gradient(to bottom, transparent 0 25px, var(--paper-line) 25px 26px);
+  background-attachment: local;
+  border-left: 10px solid var(--pink);
+  color: var(--ink);
+  padding: 4px 12px;
+}
+
+.jcard-paper:focus-visible {
+  outline: 1px dotted #fff;
+  outline-offset: 2px;
+}
+
+.notes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.notes-list li {
+  display: flex;
+  gap: 10px;
+  line-height: 26px;
+  min-height: 26px;
+}
+
+.notes-list .note-date {
+  flex: none;
+  width: 52px;
+  font-weight: bold;
+  color: #a1004f;
+}
+
+.notes-list .note-line {
+  flex: 1;
+  min-width: 0;
+}
+
+.notes-list .empty {
+  color: #555;
+}
+
+/* ── Weather: the LCD tuner ─────────────────────────────────────────────── */
+
+.tuner {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--tuner-bg);
+  color: var(--tuner-text);
+  box-shadow:
+    inset 2px 2px #000,
+    inset -1px -1px #3b3b3b,
+    inset 0 0 40px rgb(80 220 255 / 0.08);
+  font-family: ui-monospace, 'DejaVu Sans Mono', Menlo, Consolas, 'Courier New', monospace;
+  font-weight: bold;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.tuner-band {
+  font-family: 'Pixelated MS Sans Serif', Arial, sans-serif;
+  color: var(--tuner-dim);
+  border-bottom: 1px solid #1d4b5c;
+  padding-bottom: 4px;
+  letter-spacing: 2px;
+  font-size: 11px;
+}
+
+.wx-days {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+}
+
+.wx-day {
+  display: grid;
+  grid-template-columns: minmax(76px, 120px) 34px 1fr 52px;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 8px;
+  min-height: 50px;
+  border-bottom: 1px solid #12303d;
+  text-shadow: 0 0 6px rgb(120 230 255 / 0.45);
+}
+
+.wx-day.today {
+  background: #0f3445;
+  box-shadow: inset 0 0 0 1px #2c7f9b;
+}
+
+.wx-when {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.wx-name {
+  font-size: 16px;
+  letter-spacing: 2px;
+}
+
+.wx-label {
+  font-family: 'Pixelated MS Sans Serif', Arial, sans-serif;
+  color: var(--tuner-dim);
+  text-shadow: none;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.wx-temp b {
+  font-family: 'DSEG7', ui-monospace, monospace;
+  font-size: 17px;
+  font-weight: normal;
+}
+
+.wx-temp span {
+  color: var(--tuner-dim);
+}
+
+.wx-rain {
+  text-align: right;
+  color: #7fc4ff;
+}
+
+.wx-updated,
+.wx-msg {
+  margin: 0;
+  font-family: 'Pixelated MS Sans Serif', Arial, sans-serif;
+  color: var(--tuner-dim);
+  text-shadow: none;
+}
+
+.wx-updated.stale {
+  color: var(--amber);
+}
+
+.wx-msg {
+  font-family: ui-monospace, 'DejaVu Sans Mono', Menlo, Consolas, monospace;
+  font-weight: bold;
+  color: var(--amber);
+  font-size: 14px;
+  padding: 12px 0;
+}
+
+.wx-msg[hidden] {
+  display: none;
+}
+
+.wx-icon {
+  width: 34px;
+  height: 34px;
+  overflow: visible;
+}
+
+.wx-sun circle {
+  fill: #ffd84a;
+}
+
+.wx-sun line {
+  stroke: #ffd84a;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.wx-sun {
+  filter: drop-shadow(0 0 3px rgb(255 216 74 / 0.8));
+}
+
+.wx-cloud {
+  fill: #dce8f0;
+  filter: drop-shadow(0 0 2px rgb(220 232 240 / 0.6));
+}
+
+.wx-cloud.dark {
+  fill: #9fb0bf;
+}
+
+.wx-drops {
+  fill: #4fb3ff;
+  filter: drop-shadow(0 0 2px rgb(79 179 255 / 0.8));
+}
+
+.wx-bolt {
+  fill: #ffd84a;
+  filter: drop-shadow(0 0 3px rgb(255 216 74 / 0.9));
+}
+
+.wx-fog line {
+  stroke: #c9d6df;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+/* A short Weather window: compressed rows, smaller icons (and, below about
+   four grid rows, three days: weather.ts). */
+.tuner.compact {
+  gap: 4px;
+  padding: 6px 10px;
+}
+
+.tuner.compact .wx-day {
+  min-height: 0;
+  padding: 2px 8px;
+  gap: 10px;
+  grid-template-columns: minmax(64px, 110px) 26px 1fr 46px;
+}
+
+.tuner.compact .wx-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.tuner.compact .wx-name {
+  font-size: 14px;
+}
+
+.tuner.compact .wx-when {
+  gap: 1px;
+}
+
+/* A narrow Weather window: tighter columns. */
+@container (max-width: 420px) {
+  .wx-day,
+  .tuner.compact .wx-day {
+    grid-template-columns: minmax(52px, 1fr) 26px auto 38px;
+    gap: 6px;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  .wx-icon,
+  .tuner.compact .wx-icon {
+    width: 26px;
+    height: 26px;
+  }
+  .wx-name {
+    font-size: 13px;
+    letter-spacing: 1px;
+  }
+  .wx-temp b {
+    font-size: 14px;
+  }
+  .tuner-band {
+    letter-spacing: 0;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+}
+
+/* ── taskbar ────────────────────────────────────────────────────────────── */
+
+.taskbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 15;
+  min-height: var(--taskbar-h);
+  padding: 3px max(4px, env(safe-area-inset-right)) max(3px, env(safe-area-inset-bottom))
+    max(4px, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: silver;
+  box-shadow:
+    inset 0 1px #dfdfdf,
+    inset 0 2px #fff;
+}
+
+.taskbar button {
+  min-height: 32px;
+}
+
+.start-btn {
+  font-weight: bold;
+  min-width: 78px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+}
+
+.start-btn.active {
+  box-shadow:
+    inset -1px -1px #fff,
+    inset 1px 1px #0a0a0a,
+    inset -2px -2px #dfdfdf,
+    inset 2px 2px grey;
+}
+
+/* A ticked 98 checkbox: the PHT logo. */
+.start-logo {
+  width: 16px;
+  height: 16px;
+  position: relative;
+  background: #fff;
+  box-shadow:
+    inset 1px 1px grey,
+    inset 2px 2px #0a0a0a,
+    inset -1px -1px #fff,
+    inset -2px -2px #dfdfdf;
+}
+
+.start-logo::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid #000;
+  border-width: 0 2px 2px 0;
+  transform: rotate(40deg);
+}
+
+.tb-sep {
+  width: 2px;
+  height: 30px;
+  box-shadow:
+    inset 1px 0 grey,
+    inset -1px 0 #fff;
+  margin: 0 2px;
+}
+
+.tasks {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 4px;
+}
+
+.task-btn {
+  width: 170px;
+  min-width: 0;
+  text-align: left;
+  padding: 0 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* A visible window's task button is held down, 98-style. */
+.task-btn[aria-pressed='true'] {
+  font-weight: bold;
+  background: repeating-conic-gradient(#dfdfdf 0 25%, #fff 0 50%) 0 0 / 2px 2px;
+  box-shadow:
+    inset -1px -1px #fff,
+    inset 1px 1px #0a0a0a,
+    inset -2px -2px #dfdfdf,
+    inset 2px 2px grey;
+}
+
+.tray {
+  margin-left: auto;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  box-shadow:
+    inset -1px -1px #fff,
+    inset 1px 1px grey;
+}
+
+.clock.lcd {
+  font-size: 13px;
+  padding: 4px 8px;
+}
+
+/* ── Start menu ─────────────────────────────────────────────────────────── */
+
+.start-menu {
+  position: fixed;
+  left: max(2px, env(safe-area-inset-left));
+  bottom: calc(var(--taskbar-h) + env(safe-area-inset-bottom));
+  z-index: 16;
+  width: 230px;
+  display: flex;
+  padding: 3px;
+}
+
+.start-menu[hidden] {
+  display: none;
+}
+
+.start-banner {
+  width: 28px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: linear-gradient(to top, navy, #1084d0);
+  color: #fff;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  padding: 8px 4px;
+  font-size: 18px;
+  letter-spacing: 1px;
+}
+
+.start-banner span {
+  color: #c0c0c0;
+}
+
+.start-menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 2px;
+  flex: 1;
+}
+
+.start-menu .menu-last {
+  border-top: 1px solid grey;
+  box-shadow: inset 0 1px #fff;
+  margin-top: 3px;
+  padding-top: 3px;
+}
+
+.start-menu .menu-item {
+  display: block;
+  width: 100%;
+  min-height: 34px;
+  text-align: left;
+  padding: 0 12px;
+  background: none;
+  box-shadow: none;
+}
+
+.start-menu .menu-item:focus,
+.start-menu .menu-item:hover {
+  background: navy;
+  color: #fff;
+  outline: none;
+}
+
+/* Start ▸ Layouts: the submenu opens to the right of its item. */
+.start-menu .has-sub {
+  position: relative;
+}
+
+.start-menu .menu-layouts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.start-sub {
+  position: absolute;
+  left: calc(100% + 2px);
+  top: -3px;
+  width: 270px;
+  padding: 3px;
+}
+
+.start-sub[hidden] {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  .start-sub {
+    left: 24px;
+    top: 100%;
+    width: min(270px, calc(100vw - 40px));
+  }
+}
+
+/* ── balloons and the splash ────────────────────────────────────────────── */
+
+.balloons {
+  position: fixed;
+  right: max(8px, env(safe-area-inset-right));
+  bottom: calc(var(--taskbar-h) + 10px + env(safe-area-inset-bottom));
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.balloon {
+  position: relative;
+  pointer-events: auto;
+  max-width: 300px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 10px 10px 12px;
+  background: #ffffe1;
+  color: #000;
+  border: 1px solid #000;
+  border-radius: 8px;
+  box-shadow: 3px 3px 0 rgb(0 0 0 / 0.35);
+}
+
+.balloon::after {
+  content: '';
+  position: absolute;
+  right: 26px;
+  bottom: -10px;
+  border: 10px solid transparent;
+  border-bottom: 0;
+  border-top-color: #000;
+}
+
+.balloon-text {
+  margin: 0;
+  flex: 1;
+  font-size: 13px;
+}
+
+.balloon-close {
+  flex: none;
+  min-width: 18px;
+  min-height: 18px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.balloon-close::before {
+  content: '×';
+  font-size: 15px;
+}
+
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: #000;
+}
+
+.splash-brand {
+  font-family: ui-monospace, 'DejaVu Sans Mono', Menlo, Consolas, monospace;
+  font-weight: bold;
+  font-size: 64px;
+  color: var(--lcd-text);
+  text-shadow: 0 0 18px rgb(45 255 106 / 0.7);
+  letter-spacing: 8px;
+}
+
+.splash-sub {
+  color: #b9b9b9;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
+
+/* ── floating windows ───────────────────────────────────────────────────── */
+
+.float {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 380px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - var(--taskbar-h) - 16px);
+  max-height: calc(100dvh - var(--taskbar-h) - 16px);
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    inset -1px -1px #0a0a0a,
+    inset 1px 1px #dfdfdf,
+    inset -2px -2px grey,
+    inset 2px 2px #fff,
+    6px 8px 0 rgb(0 0 0 / 0.45);
+}
+
+.float:focus {
+  outline: none;
+}
+
+.float > .title-bar {
+  flex: none;
+  cursor: move;
+  touch-action: none;
+  user-select: none;
+}
+
+/* The window you are not using has the grey 98 title bar. */
+.float:not(.active) > .title-bar {
+  background: linear-gradient(90deg, grey, #b5b5b5);
+}
+
+.float-body {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.float-body.busy {
+  cursor: progress;
+}
+
+.float-body.busy button {
+  pointer-events: none;
+}
+
+.display-window {
+  width: 340px;
+}
+
+.help-window {
+  width: 300px;
+}
+
+fieldset + fieldset,
+.float-body > fieldset + div {
+  margin-top: 8px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  text-align: center;
+}
+
+.stat-row .stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 22px;
+  font-weight: bold;
+  line-height: 1.1;
+}
+
+.stat-label {
+  color: #444;
+}
+
+.info-meter {
+  background: #1b1b20;
+  padding: 6px;
+  height: 30px;
+  justify-content: space-between;
+}
+
+.info-meter .led {
+  flex: 1;
+  width: auto;
+}
+
+.milestone .progress-indicator {
+  height: 20px;
+}
+
+.milestone-text {
+  margin: 0 0 4px;
+}
+
+.ramp-help {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.ramp-row .ramp-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.ramp-row .ramp-save {
+  min-width: 56px;
+}
+
+.info-actions,
+.dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.float-body > .status-bar {
+  margin-top: 8px;
+}
+
+.hint {
+  color: #444;
+  margin: 6px 0 0;
+}
+
+/* Display Properties */
+.monitor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 4px 0 10px;
+}
+
+.monitor-screen {
+  width: 180px;
+  height: 120px;
+  border: 10px solid silver;
+  box-shadow:
+    inset 1px 1px grey,
+    -1px -1px #fff,
+    1px 1px #0a0a0a,
+    2px 2px grey;
+}
+
+.monitor-stand {
+  width: 70px;
+  height: 14px;
+  background: silver;
+  box-shadow:
+    inset -1px -1px #0a0a0a,
+    inset 1px 1px #fff;
+  clip-path: polygon(20% 0, 80% 0, 100% 100%, 0 100%);
+}
+
+.wp-list {
+  list-style: none;
+  margin: 0;
+  padding: 2px;
+  background: #fff;
+  box-shadow:
+    inset -1px -1px #fff,
+    inset 1px 1px grey,
+    inset -2px -2px #dfdfdf,
+    inset 2px 2px #0a0a0a;
+  outline: none;
+}
+
+.wp-option {
+  padding: 4px 6px;
+  cursor: default;
+}
+
+.wp-option.selected {
+  background: navy;
+  color: #fff;
+}
+
+.wp-list:focus-visible .wp-option.selected {
+  outline: 1px dotted #fff;
+  outline-offset: -2px;
+}
+
+.animate-row {
+  margin-top: 10px;
+}
+
+.keys-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.keys-table th {
+  text-align: left;
+  padding: 4px 10px 4px 0;
+  white-space: nowrap;
+}
+
+.keys-table kbd {
+  font-family: inherit;
+  padding: 1px 6px;
+  background: #fff;
+  box-shadow:
+    inset -1px -1px #0a0a0a,
+    inset 1px 1px #fff,
+    inset -2px -2px grey;
+}
+
+/* ── Setup ──────────────────────────────────────────────────────────────── */
+
+.add-form .field-row {
+  margin-top: 4px;
+}
+
+.add-form .new-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.add-form .add-btn {
+  min-width: 56px;
+}
+
+.setup-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+}
+
+.setup-row + .setup-row {
+  border-top: 1px dotted #a0a0a0;
+}
+
+.setup-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.setup-row .move-up,
+.setup-row .move-down {
+  min-width: 28px;
+  padding: 0;
+}
+
+/* ── dialogs ────────────────────────────────────────────────────────────── */
+
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: rgb(0 0 0 / 0.15);
+  /* Above every floating window (they count up from 20) and the splash. */
+  z-index: 100000;
+}
+
+.dialog {
+  width: 100%;
+  max-width: 300px;
+}
+
+.dialog-message {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.dialog-message p {
+  margin: 0;
+  flex: 1;
+}
+
+.dialog-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.dialog-icon.error {
+  background: #e00000;
+  border: 1px solid #800000;
+}
+
+.dialog-icon.error::after {
+  content: '×';
+}
+
+.dialog-icon.question,
+.dialog-icon.info {
+  background: #fff;
+  color: navy;
+  border: 1px solid navy;
+}
+
+.dialog-icon.question::after {
+  content: '?';
+}
+
+.dialog-icon.info::after {
+  content: 'i';
+}
+
+.dialog .field-row-stacked {
+  margin-top: 10px;
+}
+
+.dialog-input {
+  width: 100%;
+}
+
+/* ── login ──────────────────────────────────────────────────────────────── */
+
+.login-window {
+  position: fixed;
+  top: env(safe-area-inset-top);
+  right: env(safe-area-inset-right);
+  bottom: 0;
+  left: env(safe-area-inset-left);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.login-form .field-row-stacked {
+  margin-top: 8px;
+}
+
+.login-form input {
+  width: 100%;
+}
+
+.login-message {
+  min-height: 16px;
+  margin: 8px 0 0;
+  color: #a00000;
+}
+
+@media (min-width: 600px) {
+  .login-window {
+    position: relative;
+    inset: auto;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    width: 300px;
+    margin: 120px auto 0;
+  }
+}
+
+
+/* ── desktop (≥ 900px): the snap grid above the taskbar ─────────────────── */
+
+@media (min-width: 900px) {
+  body,
+  button,
+  input,
+  label,
+  legend,
+  table,
+  .window {
+    font-size: 13px;
+  }
+
+  body {
+    overflow: hidden;
+  }
+
+  .desk {
+    position: fixed;
+    top: env(safe-area-inset-top);
+    left: 0;
+    right: 0;
+    bottom: calc(var(--taskbar-h) + env(safe-area-inset-bottom));
+  }
+
+  /* On the grid: placed in px by snapgrid.ts, gliding to each new spot. */
+  .desk .win {
+    position: absolute;
+    transition:
+      left 0.12s,
+      top 0.12s,
+      width 0.12s,
+      height 0.12s;
+  }
+
+  /* Following the pointer: no glide, above the others. */
+  .desk .win.live {
+    z-index: 5;
+    opacity: 0.92;
+    transition: none;
+  }
+
+  .desk .win {
+    box-shadow:
+      inset -1px -1px #0a0a0a,
+      inset 1px 1px #dfdfdf,
+      inset -2px -2px grey,
+      inset 2px 2px #fff,
+      8px 8px 0 rgb(0 0 0 / 0.55);
+  }
+
+  .win.minimized {
+    display: none;
+  }
+}
+
+@media (min-width: 900px) and (prefers-reduced-motion: reduce) {
+  .desk .win,
+  .snap-lines {
+    transition: none;
+  }
+}
+
+/* ── phone (< 900px): stacked windows, a scrolling page ─────────────────── */
+
+@media (max-width: 899px) {
+  .desk {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: calc(env(safe-area-inset-top) + 8px) calc(env(safe-area-inset-right) + 6px)
+      calc(var(--taskbar-h) + env(safe-area-inset-bottom) + 14px) calc(env(safe-area-inset-left) + 6px);
+  }
+
+  .rh,
+  .snap-lines,
+  .snap-ghost {
+    display: none;
+  }
+
+  .win > .title-bar {
+    cursor: default;
+  }
+
+  .win .title-bar-controls .min-btn,
+  .tasks,
+  .tb-sep {
+    display: none;
+  }
+
+  .win-history .hist-deck {
+    min-height: 0;
+  }
+
+  .jcard-paper {
+    max-height: 260px;
+  }
+
+  .float {
+    left: 0 !important;
+    right: 0;
+    top: auto !important;
+    bottom: 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 88vh;
+    max-height: 88dvh;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .float > .title-bar {
+    cursor: default;
+  }
+
+  .splash-brand {
+    font-size: 44px;
+  }
+
+  .strip {
+    grid-template-columns: max-content minmax(60px, 1fr) auto auto;
+    gap: 8px;
+    padding: 6px 8px;
+  }
+
+  .meter .led {
+    width: 8px;
+  }
+
+  .seg7 {
+    font-size: 20px;
+  }
+
+  .mrow {
+    grid-template-columns: 96px repeat(var(--days, 7), minmax(0, 1fr));
+  }
+
+  .mrow .led {
+    height: 22px;
+  }
+
+  .wx-day {
+    grid-template-columns: minmax(64px, 1fr) 34px minmax(80px, auto) 44px;
+  }
+}
+
+/* ── touch: every control at least 44px tall ────────────────────────────── */
+
+@media (pointer: coarse) {
+  body,
+  button,
+  input,
+  label,
+  legend,
+  table,
+  .window {
+    font-size: 14px;
+  }
+
+  .title-bar,
+  .title-bar-text,
+  .taskbar button {
+    font-size: 11px;
+  }
+
+  .strip {
+    min-height: 60px;
+  }
+
+  .deck .key,
+  .deck .habit-name {
+    min-height: 44px;
+  }
+
+  button,
+  .taskbar button {
+    min-height: 44px;
+  }
+
+  .title-bar-controls button {
+    min-height: 22px;
+    min-width: 24px;
+    background-position: center;
+  }
+
+  input[type='text'],
+  input[type='password'] {
+    height: 36px;
+  }
+
+  .setup-row {
+    min-height: 44px;
+  }
+
+  .setup-row .move-up,
+  .setup-row .move-down {
+    min-width: 44px;
+  }
+
+  .wp-option {
+    padding: 12px 8px;
+  }
+}
+
+/* ── ?debug=drag: the Drag log window ───────────────────────────────────── */
+
+.drag-log {
+  width: min(620px, calc(100vw - 24px));
+}
+
+.drag-log-head,
+.drag-log-lines,
+.drag-log-fallback {
+  margin: 0 0 6px;
+  font-family: ui-monospace, 'DejaVu Sans Mono', Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.35;
+  background: #fff;
+  box-shadow:
+    inset -1px -1px #fff,
+    inset 1px 1px grey,
+    inset -2px -2px #dfdfdf,
+    inset 2px 2px #0a0a0a;
+  padding: 4px 6px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.drag-log-head {
+  max-height: 90px;
+  overflow: auto;
+}
+
+.drag-log-lines {
+  height: 240px;
+  overflow: auto;
+  white-space: pre;
+  word-break: normal;
+}
+
+.drag-log-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.drag-log-note {
+  margin: 6px 0 0;
+  min-height: 1em;
+}
+
+.drag-log-fallback {
+  width: 100%;
+  height: 120px;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+/* ── Schedules: rest days ───────────────────────────────────────────────── */
+
+/* A rest day for that habit: hatched and dim, distinct from a missed (dark)
+   day. Done on a rest day stays lit, a little quieter. */
+.led.rest:not(.on) {
+  background: repeating-linear-gradient(135deg, #4a4a54 0 2px, #1b1b20 2px 5px);
+  box-shadow: inset 1px 1px #000;
+  opacity: 0.6;
+}
+
+.led.rest.on {
+  opacity: 0.7;
+}
+
+/* The deck's strip on a rest day: REST on the key, the strip dimmed. */
+.strip.rest {
+  background: #1d1d22;
+  box-shadow:
+    inset 1px 1px #2c2c33,
+    inset -1px -1px #0b0b0c;
+}
+
+.strip.rest .habit-name {
+  color: #b4b4be;
+}
+
+.deck .strip.rest .key[aria-pressed='false'] {
+  background: #a3a3a3;
+  color: #2a2a2a;
+}
+
+.strip.rest .lamp {
+  background: #454545;
+}
+
+/* ── Schedule picker (Info, Setup) ──────────────────────────────────────── */
+
+.schedule-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.schedule-form .field-row + .field-row {
+  margin-top: 0;
+}
+
+.schedule-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-left: 18px;
+}
+
+.schedule-eod {
+  margin-left: 18px;
+}
+
+.schedule-form fieldset.schedule-days[disabled],
+.schedule-eod[disabled] {
+  opacity: 0.6;
+}
+
+.schedule-now {
+  margin: 0;
+  color: #333;
+}
+
+.schedule-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ── AI Wire: fanfold teletype paper ────────────────────────────────────── */
+
+/* ── Learned ────────────────────────────────────────────────────────────── */
+
+.win-learned {
+  container-type: inline-size;
+}
+
+.learned-deck {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: linear-gradient(var(--deck-hi), var(--deck));
+  color: var(--deck-text);
+  box-shadow:
+    inset 1px 1px grey,
+    inset 2px 2px #0a0a0a,
+    inset -1px -1px #fff,
+    inset -2px -2px #dfdfdf;
+}
+
+.learned-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.learned-search {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  font-size: 13px;
+}
+
+.learned-count {
+  flex: none;
+  margin: 0;
+  padding: 3px 8px;
+  background: var(--lcd-bg);
+  color: var(--lcd-text);
+  font: bold 13px ui-monospace, 'DejaVu Sans Mono', Menlo, monospace;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.learned-month {
+  flex: none;
+  margin: 0;
+  font-size: 12px;
+  color: var(--lcd-dim);
+}
+
+.learned-msg {
+  flex: none;
+  margin: 0;
+  font-weight: bold;
+  color: #ffb3a8;
+}
+
+.learned-msg[hidden],
+.learned-more[hidden] {
+  display: none;
+}
+
+.learned-paper {
+  min-height: 0;
+}
+
+.learned-list li {
+  align-items: flex-start;
+}
+
+.learned-list .note-line {
+  overflow-wrap: anywhere;
+}
+
+/* An entry in the backfill window opens its day: a plain row, not a 98 button. */
+.learned-list button.learned-entry {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  min-height: 26px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  line-height: 26px;
+  text-align: left;
+  text-shadow: none;
+  cursor: pointer;
+}
+
+.learned-list button.learned-entry:hover .note-line {
+  text-decoration: underline;
+}
+
+.learned-list button.learned-entry:focus-visible {
+  outline: 1px dotted #000;
+  outline-offset: -1px;
+}
+
+.learned-list li.read-only {
+  color: #555;
+}
+
+.learned-more {
+  margin: 4px 0;
+}
+
+.learned-deck.no-month .learned-month {
+  display: none;
+}
+
+.learned-deck.narrow {
+  padding: 6px;
+}
+
+.learned-deck.narrow .note-date {
+  width: 44px;
+}
+
+.win-wire {
+  container-type: inline-size;
+}
+
+.wire-feed {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  background: #6f6a5c;
+  box-shadow:
+    inset 2px 2px #000,
+    inset -1px -1px #3b3b3b;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* The paper: green-bar bands, a tractor-feed strip of holes down each side
+   with a perforation line inside it, printed in a monospace "dot-matrix". */
+.wire-paper {
+  --feed: 22px;
+  --hole: 6px;
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px calc(var(--feed) + 10px) 12px;
+  color: #23241f;
+  background:
+    radial-gradient(circle at center, #6f6a5c 0 calc(var(--hole) / 2), transparent calc(var(--hole) / 2 + 0.5px)) left top / var(--feed) 18px repeat-y,
+    radial-gradient(circle at center, #6f6a5c 0 calc(var(--hole) / 2), transparent calc(var(--hole) / 2 + 0.5px)) right top / var(--feed) 18px repeat-y,
+    repeating-linear-gradient(180deg, #f4f6ea 0 36px, #e2edd8 36px 72px);
+  font-family: 'Courier New', 'Nimbus Mono PS', 'DejaVu Sans Mono', ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* The perforation lines between the holes and the print. */
+.wire-paper::before,
+.wire-paper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed #9b9a8c;
+}
+
+.wire-paper::before {
+  left: var(--feed);
+}
+
+.wire-paper::after {
+  right: var(--feed);
+}
+
+.wire-paper.narrow {
+  --feed: 14px;
+  --hole: 5px;
+  padding-left: calc(var(--feed) + 6px);
+  padding-right: calc(var(--feed) + 6px);
+}
+
+.wire-msg {
+  margin: 0;
+  font-weight: bold;
+  letter-spacing: 2px;
+  color: #2c3d1d;
+}
+
+.wire-msg[data-state='no-signal'],
+.wire-msg[data-state='error'],
+.wire-msg[data-state='offline'] {
+  color: #7a1d12;
+}
+
+.wire-story {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* `hidden` must win over the display rules here and below. */
+.wire-story[hidden],
+.wire-tag[hidden],
+.wire-excerpt[hidden],
+.wire-msg[hidden] {
+  display: none !important;
+}
+
+.wire-tag {
+  margin: 0;
+  align-self: flex-start;
+  padding: 0 4px;
+  border: 1px solid #4a4a3f;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  color: #2c3d1d;
+}
+
+.wire-meta {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: #4a4a3f;
+}
+
+.wire-meta::before {
+  content: '>> ';
+}
+
+.wire-title {
+  margin: 0;
+  font-family: inherit;
+  font-size: 17px;
+  line-height: 1.3;
+  font-weight: bold;
+  color: #121310;
+}
+
+.wire-excerpt {
+  margin: 0;
+  color: #2b2c26;
+}
+
+.wire-queue {
+  align-self: center;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: #4a4a3f;
+  white-space: nowrap;
+}
+
+.wire-queue[hidden] {
+  display: none;
+}
+
+.wire-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+/* Read is a link (it opens a new tab) dressed as a 98 button, like Skip. */
+.wire-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 75px;
+  min-height: 26px;
+  padding: 0 12px;
+  background: silver;
+  box-shadow:
+    inset -1px -1px #0a0a0a,
+    inset 1px 1px #fff,
+    inset -2px -2px grey,
+    inset 2px 2px #dfdfdf;
+  color: #222;
+  font-family: var(--ui-font);
+  font-size: 12px;
+  font-weight: bold;
+  text-decoration: none;
+  text-shadow: none;
+}
+
+a.wire-btn:active {
+  box-shadow:
+    inset -1px -1px #fff,
+    inset 1px 1px #0a0a0a,
+    inset -2px -2px #dfdfdf,
+    inset 2px 2px grey;
+}
+
+a.wire-btn:focus-visible {
+  outline: 1px dotted #000;
+  outline-offset: -4px;
+}
+
+.wire-story.is-read .wire-read {
+  color: #1d5a2a;
+}
+
+.wire-past {
+  margin-top: auto;
+  border-top: 1px dashed #8d8c7d;
+  padding-top: 6px;
+}
+
+.wire-past-head {
+  margin: 0 0 4px;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #4a4a3f;
+}
+
+.wire-past-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wire-past-item {
+  display: grid;
+  grid-template-columns: 1.2em 4.8em minmax(0, 1fr);
+  align-items: baseline;
+  font-size: 12px;
+}
+
+.wire-tick {
+  font-weight: bold;
+  color: #8a8a7c;
+}
+
+.wire-past-item.read .wire-tick {
+  color: #1d6a2c;
+}
+
+.wire-past-date {
+  color: #55554a;
+}
+
+.wire-past-link {
+  color: #1d2a6b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wire-past-item.read .wire-past-link {
+  color: #3d3d55;
+}
+
+.wire-past .empty {
+  color: #55554a;
+}
+
+/* Smaller windows shed parts: the past list, then the excerpt's length,
+   then the excerpt. */
+.wire-paper.no-past .wire-past {
+  display: none;
+}
+
+.wire-paper.clip-excerpt .wire-excerpt {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.wire-paper.clip-excerpt .wire-title {
+  font-size: 15px;
+}
+
+.wire-paper.tiny .wire-excerpt,
+.wire-paper.tiny .wire-tag {
+  display: none;
+}
+
+.wire-paper.tiny {
+  gap: 4px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+@container (max-width: 300px) {
+  .wire-title {
+    font-size: 14px;
+  }
+
+  .wire-btn {
+    min-width: 60px;
+  }
+}
+
+@media (pointer: coarse) {
+  .wire-btn {
+    min-height: 44px;
+  }
+}

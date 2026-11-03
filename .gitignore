@@ -1,0 +1,26 @@
+node_modules/
+dist/
+*.log
+logs/
+.DS_Store
+
+# Local config and secrets (each package keeps its own .env.example)
+.env
+.env.*
+!.env.example
+api/ops/ops.env
+.claude/
+
+# Local data, dumps, run output
+data/
+runs/
+backups/
+*.sql.gz
+*.db
+*.sqlite
+*.sqlite3
+
+# Browser walkthrough output (curated copies live in docs/screenshots/)
+web/dev/screenshots/
+*.sql
+!api/ops/*.sql
