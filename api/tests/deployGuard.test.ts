@@ -126,12 +126,17 @@ describe('require_deployable_main', () => {
 
   it('refuses this repo when it is not on main', () => {
     // The real working tree. Only the branch check runs before it refuses, so
-    // nothing is fetched.
-    const branch = git(REPO, 'symbolic-ref', '--quiet', '--short', 'HEAD');
+    // nothing is fetched. CI checks pull requests out on a detached HEAD.
+    let branch: string | null;
+    try {
+      branch = git(REPO, 'symbolic-ref', '--quiet', '--short', 'HEAD');
+    } catch {
+      branch = null; // detached
+    }
     if (branch === 'main') return; // nothing to prove from main
     const r = guard(REPO);
     expect(r.code).toBe(1);
-    expect(r.stderr).toContain(`on branch '${branch}'`);
+    expect(r.stderr).toContain(branch === null ? 'detached HEAD' : `on branch '${branch}'`);
   });
 });
 
