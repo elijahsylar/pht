@@ -1,5 +1,7 @@
 # PHT
 
+[![CI](https://github.com/elijahsylar/pht/actions/workflows/ci.yml/badge.svg)](https://github.com/elijahsylar/pht/actions/workflows/ci.yml)
+
 A single-user daily habit tracker: one check per habit per day, an optional one-line note, a "learned today" line, streaks that respect rest days, a 7-day weather window, and one curated AI-engineering article a day. The page is a Windows 98 desktop with snap-grid windows and 1980s hardware inside them. Underneath the styling it is a small, heavily tested full-stack app: a TypeScript API over a storage interface with two implementations, a dependency-free frontend, and deploy scripts built to make the obvious mistakes impossible.
 
 ![Desktop](docs/screenshots/desktop-synthwave.png)
