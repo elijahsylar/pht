@@ -64,7 +64,7 @@ flowchart LR
 
 | Suite | Command | Result |
 |---|---|---|
-| API unit and route tests (fake store) | `cd api && npm test` | 281 passed |
+| API unit and route tests (fake store) | `cd api && npm test` | 252 passed, 59 skipped (283 passed with a production web build at the path the frontend-artifact tests read: their 31 checks need one) |
 | API on real MySQL 8.4 (Docker) | `cd api && npm run test:mysql` | 28 passed |
 | Web unit tests | `cd web && npm test` | 61 passed |
 | Browser walkthrough (Chrome walkthrough, Chrome and Firefox grid checks) | `cd web && npm run ui:check` | 654 checks passed |
