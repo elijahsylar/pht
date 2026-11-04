@@ -1,5 +1,6 @@
 import express, { type Express } from 'express';
 import type { Store } from './db/store.js';
+import type { AttemptLimiter } from './lib/attemptLimiter.js';
 import { requireAuth, requireAuthOrToken } from './middleware/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/logger.js';
@@ -31,18 +32,22 @@ import { weatherRouter } from './routes/weather.js';
 // sources.
 export function createApp(
   store: Store,
-  opts: { log?: boolean; weather?: WeatherService; wire?: WireService } = {},
+  opts: { log?: boolean; weather?: WeatherService; wire?: WireService; limiter?: AttemptLimiter } = {},
 ): Express {
   const app = express();
   const anyAuth = requireAuthOrToken(store);
   const jwtAuth = requireAuth(store);
 
   app.disable('x-powered-by');
+  // nginx on the same host appends the client to X-Forwarded-For; trusting only
+  // a loopback peer makes req.ip that client (the login attempt limits key on
+  // it) while a forged header from anywhere else is ignored.
+  app.set('trust proxy', 'loopback');
   app.use(express.json({ limit: '1mb' }));
   if (opts.log !== false) app.use(requestLogger);
 
   app.use('/api/health', healthRouter);
-  app.use('/api/auth', authRouter(store));
+  app.use('/api/auth', authRouter(store, opts.limiter));
 
   // Open to the API token as well as the browser's JWT.
   app.use('/api/today', anyAuth, todayRouter(store));

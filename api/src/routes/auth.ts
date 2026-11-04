@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { loginSchema, securityVerifySchema } from '../schemas.js';
@@ -6,18 +6,38 @@ import { requireAuth, requirePartial, type AuthedRequest } from '../middleware/a
 import { getAdminPasswordHash, verifySecurityAnswer } from '../db/settings.js';
 import type { SettingsStore } from '../db/store.js';
 import { RENEW_HEADER, SESSIONS_VALID_AFTER_KEY, issueSessionToken } from '../lib/session.js';
+import { type AttemptLimiter, createAttemptLimiter, tooManyAttempts } from '../lib/attemptLimiter.js';
 
 // The browser login: password, then security answer, then a 30-day sliding
 // JWT (lib/session.ts). The API token plays no part here and is rejected by
 // /verify and /logout.
-export function authRouter(store: SettingsStore): Router {
+//
+// Both steps are attempt-limited per client IP and per account
+// (lib/attemptLimiter.ts). A refused attempt is a 429 with Retry-After, sent
+// before any credential is checked.
+export function authRouter(store: SettingsStore, limiter: AttemptLimiter = createAttemptLimiter()): Router {
   const router = Router();
+
+  // req.ip is the client's address: app.ts trusts X-Forwarded-For from the
+  // loopback proxy (nginx) only.
+  const clientIp = (req: { ip?: string }) => req.ip ?? 'unknown';
+  const refuse = (res: Response, retryAfterMs: number) => {
+    const r = tooManyAttempts(retryAfterMs);
+    res.setHeader('Retry-After', String(r.seconds));
+    return res.status(429).json(r.body);
+  };
 
   // Step 1 — password. On success issues only a short-lived PARTIAL token; the
   // security answer (step 2) is still required before a full token is granted.
   router.post('/login', async (req, res, next) => {
     try {
       const { username, password } = loginSchema.parse(req.body);
+      // Only the real account gets an account counter, so made-up user names
+      // cannot fill memory; they still count against the IP.
+      const account = username === process.env.ADMIN_USERNAME ? username : null;
+      const ip = clientIp(req);
+      const gate = limiter.begin('login', ip, account);
+      if (!gate.allowed) return refuse(res, gate.retryAfterMs);
       if (username !== process.env.ADMIN_USERNAME) {
         return res.status(401).json({ error: 'invalid credentials' });
       }
@@ -31,6 +51,7 @@ export function authRouter(store: SettingsStore): Router {
       if (!ok) {
         return res.status(401).json({ error: 'invalid credentials' });
       }
+      limiter.success('login', ip, account);
       const partialToken = jwt.sign(
         // iatMs: revocation compares in milliseconds (see requirePartial)
         { username, stage: 'partial', iatMs: Date.now() },
@@ -48,10 +69,15 @@ export function authRouter(store: SettingsStore): Router {
   router.post('/verify-security', requirePartial(store), async (req: AuthedRequest, res, next) => {
     try {
       const { answer } = securityVerifySchema.parse(req.body);
+      const username = req.user?.username ?? (process.env.ADMIN_USERNAME as string);
+      const ip = clientIp(req);
+      // Always the account counter: a new partial token does not reset it.
+      const gate = limiter.begin('security', ip, username);
+      if (!gate.allowed) return refuse(res, gate.retryAfterMs);
       if (!(await verifySecurityAnswer(store, answer))) {
         return res.status(401).json({ error: 'incorrect answer' });
       }
-      const username = req.user?.username ?? (process.env.ADMIN_USERNAME as string);
+      limiter.success('security', ip, username);
       res.json({ token: issueSessionToken(username) });
     } catch (err) {
       next(err);
