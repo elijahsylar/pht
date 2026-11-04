@@ -330,6 +330,8 @@ export function createSnapDesk(opts: {
     bar.tabIndex = 0;
     bar.dataset.role = 'title-bar';
     bar.title = 'Drag to move, onto another window to swap. Double-click to fill the height.';
+    // A focusable group, so its label and role description are valid ARIA.
+    bar.setAttribute('role', 'group');
     bar.setAttribute('aria-roledescription', 'title bar');
     bar.setAttribute('aria-label', `${titles[w.name]} window. Alt and arrow keys move it, Alt Shift and arrow keys resize it, Enter fills the height`);
     bar.addEventListener('mousedown', (e) => {
