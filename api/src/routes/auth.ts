@@ -32,7 +32,8 @@ export function authRouter(store: SettingsStore): Router {
         return res.status(401).json({ error: 'invalid credentials' });
       }
       const partialToken = jwt.sign(
-        { username, stage: 'partial' },
+        // iatMs: revocation compares in milliseconds (see requirePartial)
+        { username, stage: 'partial', iatMs: Date.now() },
         process.env.JWT_SECRET as string,
         { expiresIn: '10m' },
       );
@@ -44,7 +45,7 @@ export function authRouter(store: SettingsStore): Router {
 
   // Step 2 — security answer. Requires the partial token from step 1. On a
   // case-insensitive match against the stored answer, issues the full token.
-  router.post('/verify-security', requirePartial, async (req: AuthedRequest, res, next) => {
+  router.post('/verify-security', requirePartial(store), async (req: AuthedRequest, res, next) => {
     try {
       const { answer } = securityVerifySchema.parse(req.body);
       if (!(await verifySecurityAnswer(store, answer))) {

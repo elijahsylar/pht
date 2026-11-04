@@ -69,12 +69,24 @@ export function requireAuth(store: SettingsStore): RequestHandler {
 }
 
 // The password step has passed. Used only by /auth/verify-security to gate the
-// second factor. Accepts any valid JWT (partial or full); never renews.
-export function requirePartial(req: AuthedRequest, res: Response, next: NextFunction) {
-  const r = verifyJwt(bearer(req));
-  if ('error' in r) return res.status(401).json({ error: r.error });
-  req.user = { username: r.payload.username, stage: r.payload.stage, via: 'jwt' };
-  next();
+// second factor. Accepts any valid JWT (partial or full); never renews. Like
+// requireAuth it refuses tokens issued at or before the last logout or password
+// change, so a partial token from before then cannot still become a full one.
+export function requirePartial(store: SettingsStore): RequestHandler {
+  return async (req: AuthedRequest, res: Response, next: NextFunction) => {
+    const r = verifyJwt(bearer(req));
+    if ('error' in r) return res.status(401).json({ error: r.error });
+    try {
+      const after = Number((await store.getSetting(SESSIONS_VALID_AFTER_KEY)) ?? 0);
+      if (after && issuedAtMs(r.payload) <= after) {
+        return res.status(401).json({ error: 'session ended' });
+      }
+    } catch (err) {
+      return next(err);
+    }
+    req.user = { username: r.payload.username, stage: r.payload.stage, via: 'jwt' };
+    next();
+  };
 }
 
 // A browser JWT or the API token. Mounted only on the routers the token may

@@ -129,6 +129,21 @@ describe('logout', () => {
     expect((await request(ctx.app).get('/api/auth/verify').set(bearer(laptop))).status).toBe(401);
   });
 
+  it('also ends an unused partial (password-only) token', async () => {
+    const step1 = () => request(ctx.app).post('/api/auth/login').send({ username: ADMIN, password: PASSWORD });
+    const step2 = (partial: string) =>
+      request(ctx.app).post('/api/auth/verify-security').set(bearer(partial)).send({ answer: 'name' });
+    const before = (await step1()).body.partialToken as string;
+    const full = await loginToken();
+    at(NOW.getTime() + 1000);
+    await request(ctx.app).post('/api/auth/logout').set(bearer(full));
+    const res = await step2(before);
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('session ended');
+    at(NOW.getTime() + 1001); // a millisecond later, same second
+    expect((await step2((await step1()).body.partialToken)).status).toBe(200);
+  });
+
   it('lets a new login in straight after', async () => {
     const old = await loginToken();
     await request(ctx.app).post('/api/auth/logout').set(bearer(old));
