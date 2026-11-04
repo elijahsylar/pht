@@ -36,7 +36,7 @@ export function mountLearned(ctx: Ctx, body: HTMLElement, onUnauthorized: () => 
   const month = h('p', { className: 'learned-month' });
   const list = h('ol', { className: 'notes-list learned-list', attrs: { 'aria-label': 'Learned, newest first' } });
   const more = h('button', { type: 'button', className: 'learned-more', text: 'More…', hidden: true });
-  const paper = h('div', { className: 'jcard-paper learned-paper', tabIndex: 0, attrs: { role: 'region', 'aria-label': 'Learned' } }, list, more);
+  const paper = h('div', { className: 'jcard-paper learned-paper', tabIndex: 0, attrs: { role: 'region', 'aria-label': 'Learned entries' } }, list, more);
   const msg = h('p', { className: 'learned-msg', attrs: { role: 'status' }, hidden: true });
   const deck = h('div', { className: 'learned-deck' }, h('div', { className: 'learned-head' }, search, count), month, msg, paper);
   body.replaceChildren(deck);
@@ -68,8 +68,8 @@ export function mountLearned(ctx: Ctx, body: HTMLElement, onUnauthorized: () => 
         {
           type: 'button',
           className: 'learned-entry',
+          // The visible date and text are the name; the title adds the action.
           title: `Open ${longDate(e.date)} in Today`,
-          attrs: { 'aria-label': `${longDate(e.date)}: ${e.text}. Open that day in Today` },
         },
         date,
         text,

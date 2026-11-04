@@ -294,8 +294,11 @@ export function mountToday(ctx: Ctx, body: HTMLElement, setTitle: (t: string) =>
       s.li.classList.toggle('done', habit.done);
       s.li.classList.toggle('rest', rest);
       s.key.setAttribute('aria-pressed', String(habit.done));
-      const when = past ? `on ${longDate(view)}` : 'today';
-      s.key.setAttribute('aria-label', `${habit.label}: done ${when}${rest ? ` (rest day ${when})` : ''}`);
+      // The name contains the key's visible word (TODAY, DONE, REST or the
+      // short date) so speech users can say what they see; no parentheses,
+      // which break that match.
+      const when = past ? `on ${shortDate(view)}` : 'today';
+      s.key.setAttribute('aria-label', `${habit.label}: done ${when}${rest ? `, a rest day ${when}` : ''}`);
       s.keyText.textContent = habit.done ? 'DONE' : rest ? 'REST' : past ? dayWord : 'TODAY';
 
       // LEDs: lit = done that day, dark = missed, hatched = a rest day (not
