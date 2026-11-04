@@ -191,7 +191,7 @@ export function mountDesktop(root: HTMLElement, deps: DesktopDeps): void {
       document.title = `${t} - PHT`;
     },
     {
-      step: (n) => void showDay(addDays(store.state.view, n)),
+      step: (n) => void showDay(addDays(dayTarget ?? store.state.view, n)),
       toToday: () => void showDay(store.state.date),
     },
   );
@@ -514,17 +514,27 @@ export function mountDesktop(root: HTMLElement, deps: DesktopDeps): void {
     // The query (?debug=drag) stays: only the path follows the deck.
     if (location.pathname !== path) history_.replaceState(null, '', `${path}${location.search}`);
   }
-  let dayBusy: Promise<void> | null = null;
+  // Day changes run one at a time. dayTarget is the day the deck is heading
+  // to, so quick presses step from there (three [ presses go back three
+  // days, not one), and a change already superseded by a later press is
+  // skipped instead of loaded.
+  let dayTarget: string | null = null;
+  let dayBusy: Promise<void> = Promise.resolve();
   async function showDay(date: string): Promise<void> {
-    if (!store.state.date || !inWindow(date) || date === store.state.view) return;
-    if (dayBusy) await dayBusy;
-    dayBusy = (async () => {
+    if (!store.state.date || !inWindow(date) || date === (dayTarget ?? store.state.view)) return;
+    dayTarget = date;
+    const run = dayBusy.then(async () => {
+      if (dayTarget !== date) return;
       // What was typed belongs to the day it was typed on.
       await today.flushNote();
       if (await store.setView(date)) syncDayUrl();
-    })();
-    await dayBusy;
-    dayBusy = null;
+    });
+    dayBusy = run.catch(() => {});
+    try {
+      await run;
+    } finally {
+      if (dayTarget === date) dayTarget = null;
+    }
   }
 
   // ── moments: all done, milestones ────────────────────────────────────────
@@ -577,7 +587,7 @@ export function mountDesktop(root: HTMLElement, deps: DesktopDeps): void {
       e.preventDefault();
       // `]` inside the AI Wire window is its Next ▸; everywhere else it steps the deck.
       if (act.days === 1 && winOf('wire').root.contains(document.activeElement)) return void wire.next();
-      void showDay(addDays(store.state.view, act.days));
+      void showDay(addDays(dayTarget ?? store.state.view, act.days));
     } else {
       e.preventDefault();
       openHelpWindow(document.activeElement as HTMLElement | null, isPhone);
