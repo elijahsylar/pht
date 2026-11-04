@@ -98,6 +98,9 @@ describe('streaks across rest days', () => {
     expect(currentStreak(d, '2026-10-13', always(DAILY))).toBe(2);
     expect(currentStreak(d, '2026-10-13')).toBe(2);
     expect(bestStreak(d, always(DAILY))).toBe(2);
+    // A last date whose next day no longer sorts after it (year 10000) must
+    // end the walk, not throw from addDays.
+    expect(bestStreak(new Set(['9999-12-30', '9999-12-31']), always(DAILY))).toBe(2);
   });
 
   it('every other day: rest days neither break nor extend it', () => {

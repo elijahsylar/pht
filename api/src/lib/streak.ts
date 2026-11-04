@@ -71,14 +71,20 @@ export function bestStreak(dates: ReadonlySet<string>, spans: readonly ScheduleS
   let run = 0;
   // One pass over the calendar from the first check to the last, so rest
   // days in between can be skipped rather than breaking the run.
-  for (let day = sorted[0]; day <= last; day = addDays(day, 1)) {
-    if (!dueOn(spans, day)) continue;
-    if (dates.has(day)) {
-      run += 1;
-      if (run > best) best = run;
-    } else {
-      run = 0;
+  for (let day = sorted[0]; day <= last; ) {
+    const next = day < last ? addDays(day, 1) : null;
+    if (dueOn(spans, day)) {
+      if (dates.has(day)) {
+        run += 1;
+        if (run > best) best = run;
+      } else {
+        run = 0;
+      }
     }
+    // Stop at the last check without stepping past it (past 9999-12-31 the
+    // next date no longer sorts after it and addDays throws).
+    if (next === null || next <= day) break;
+    day = next;
   }
   return best;
 }

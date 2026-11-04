@@ -514,6 +514,15 @@ describe('POST /api/import/mini-pht', () => {
     expect(total).toBe(5);
   });
 
+  it('refuses dates after tomorrow or before 1970 (they broke /api/today)', async () => {
+    for (const bad of ['9999-12-31', addDays(TOMORROW, 1), '0100-01-01']) {
+      const res = await post('/api/import/mini-pht', { log: { [bad]: ['stretch'] } });
+      expect(res.status, bad).toBe(400);
+    }
+    expect((await post('/api/import/mini-pht', { log: { [TOMORROW]: ['stretch'] } })).status).toBe(200);
+    expect((await get(`/api/today?date=${TODAY}`)).status).toBe(200);
+  });
+
   it('writes history from before the habit existed', async () => {
     const res = await post('/api/import/mini-pht', { log: { '2025-01-01': ['stretch'] } });
     expect(res.body.inserted).toBe(1);
