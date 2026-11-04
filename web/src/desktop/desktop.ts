@@ -133,7 +133,7 @@ export function mountDesktop(root: HTMLElement, deps: DesktopDeps): void {
   }
   const wins = WINDOWS.map((name): Win => {
     const titleId = `title-${name}`;
-    const title = h('div', { className: 'title-bar-text', id: titleId, text: TITLES[name] });
+    const title = h('div', { className: 'title-bar-text', id: titleId, text: TITLES[name], attrs: { role: 'heading', 'aria-level': '2' } });
     const minBtn = h('button', { type: 'button', className: 'min-btn', attrs: { 'aria-label': `Minimize ${TITLES[name]}` } });
     minBtn.addEventListener('click', () => setMinimized(name, true));
     const body = h('div', { className: 'window-body win-body' });
@@ -658,7 +658,10 @@ export function mountDesktop(root: HTMLElement, deps: DesktopDeps): void {
   // ── mount ────────────────────────────────────────────────────────────────
   const route = parseRoute(location.pathname);
   if (!route) history_.replaceState(null, '', `/${location.search}`);
-  root.replaceChildren(wallpaperLayer(), desk, menu, taskbar, balloons, live);
+  // The page's one h1, for screen-reader heading navigation; the window
+  // titles are the level-2 headings under it.
+  const heading = h('h1', { className: 'sr-only', text: 'PHT' });
+  root.replaceChildren(heading, wallpaperLayer(), desk, menu, taskbar, balloons, live);
   grid.arrange();
   if (dragDebugWanted()) cleanups.push(mountDragDebug({ layoutJson: grid.layoutJson, isPhone }));
 
