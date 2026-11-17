@@ -103,6 +103,10 @@ cd web && npm run ui:check      # needs Google Chrome at /usr/bin/google-chrome
 
 A personal tool in daily use by one person. It is intentionally single-user (one admin account, one API token) and is not designed for multiple accounts.
 
+## Project history
+
+The private originals (an API repository and a frontend repository) have commits from 24 July 2026 to 4 November 2026. This public repository is a scrubbed snapshot of those private originals, published in November 2026, which is why its commit history is short. Developed with Claude Code under a gated workflow of written plan, implementation, separate review and my sign-off.
+
 ## License
 
 MIT. See [LICENSE](LICENSE). 98.css is by Jordan Scales (MIT); the MS Sans Serif font is CC BY-SA 3.0 (`web/public/vendor/98css/`).
