@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { createApp } from './app.js';
 import { createMysqlStore } from './db/mysqlStore.js';
 import { pool } from './db/pool.js';
+import { startListening } from './lib/listen.js';
 import { createWireService, startWireSchedule } from './lib/wireService.js';
 
 const requiredEnv = [
@@ -20,13 +21,11 @@ for (const key of requiredEnv) {
   }
 }
 
-const port = Number(process.env.PORT ?? 4100);
-
 const store = createMysqlStore(pool);
 const wire = createWireService(store);
 
-createApp(store, { wire }).listen(port, () => {
-  console.log(`pht-api listening on :${port}`);
+startListening(createApp(store, { wire }), process.env, ({ address, port }) => {
+  console.log(`pht-api listening on ${address}:${port}`);
   // AI Wire's daily pick at 03:30 app_timezone (see startWireSchedule).
   startWireSchedule(store, wire);
 });

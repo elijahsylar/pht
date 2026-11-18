@@ -30,6 +30,6 @@ if (!process.env.JWT_SECRET) { console.error(\"no JWT_SECRET in .env\"); process
 process.stdout.write(jwt.sign(
   { username: process.env.ADMIN_USERNAME, stage: \"full\" },
   process.env.JWT_SECRET,
-  { expiresIn: \"${TTL}\" },
+  { algorithm: \"HS256\", expiresIn: \"${TTL}\" },
 ));
 '"

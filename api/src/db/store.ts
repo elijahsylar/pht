@@ -41,6 +41,12 @@ export interface HabitPatch {
   retired?: boolean;
 }
 
+// A schedule change: the habit follows `schedule` from `from` on.
+export interface ScheduleChange {
+  schedule: Schedule;
+  from: string;
+}
+
 export interface DayNote {
   date: string;
   line: string;
@@ -136,6 +142,11 @@ export interface Store extends SettingsStore {
   // The habit follows `schedule` from `from` on; spans starting on or after
   // `from` are replaced (withSchedule). Null when the id does not exist.
   setSchedule(id: number, schedule: Schedule, from: string): Promise<Habit | null>;
+
+  // updateHabit and, when `change` is given, setSchedule as one step: either
+  // both land or neither does. Null, with nothing written, when the id does
+  // not exist.
+  patchHabit(id: number, patch: HabitPatch, change?: ScheduleChange): Promise<Habit | null>;
 
   // Both idempotent. Neither checks that the habit exists or is active; the
   // routes own those rules.

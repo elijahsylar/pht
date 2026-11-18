@@ -5,7 +5,12 @@ import { loginSchema, securityVerifySchema } from '../schemas.js';
 import { requireAuth, requirePartial, type AuthedRequest } from '../middleware/auth.js';
 import { getAdminPasswordHash, verifySecurityAnswer } from '../db/settings.js';
 import type { SettingsStore } from '../db/store.js';
-import { RENEW_HEADER, SESSIONS_VALID_AFTER_KEY, issueSessionToken } from '../lib/session.js';
+import {
+  JWT_ALGORITHM,
+  RENEW_HEADER,
+  SESSIONS_VALID_AFTER_KEY,
+  issueSessionToken,
+} from '../lib/session.js';
 import { type AttemptLimiter, createAttemptLimiter, tooManyAttempts } from '../lib/attemptLimiter.js';
 
 // The browser login: password, then security answer, then a 30-day sliding
@@ -56,7 +61,7 @@ export function authRouter(store: SettingsStore, limiter: AttemptLimiter = creat
         // iatMs: revocation compares in milliseconds (see requirePartial)
         { username, stage: 'partial', iatMs: Date.now() },
         process.env.JWT_SECRET as string,
-        { expiresIn: '10m' },
+        { algorithm: JWT_ALGORITHM, expiresIn: '10m' },
       );
       res.json({ partialToken });
     } catch (err) {

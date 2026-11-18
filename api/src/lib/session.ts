@@ -20,6 +20,11 @@ export const RENEW_WINDOW_SECONDS = 7 * 86_400;
 export const SESSIONS_VALID_AFTER_KEY = 'sessions_valid_after';
 export const RENEW_HEADER = 'X-PHT-Token';
 
+// The one algorithm tokens are signed with and the only one accepted when
+// verifying. Without the pin, jsonwebtoken accepts any HMAC variant for a
+// string secret.
+export const JWT_ALGORITHM = 'HS256';
+
 export interface SessionPayload {
   username: string;
   stage?: string; // 'partial' = password only; 'full'/undefined = fully authed
@@ -32,6 +37,7 @@ export interface SessionPayload {
 
 export function issueSessionToken(username: string): string {
   return jwt.sign({ username, stage: 'full', iatMs: Date.now() }, process.env.JWT_SECRET as string, {
+    algorithm: JWT_ALGORITHM,
     expiresIn: SESSION_TTL_SECONDS,
   });
 }

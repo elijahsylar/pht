@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { addDays } from '../src/lib/dates.js';
 import { createFakeStore } from './fakeStore.js';
 import { TODAY, TOMORROW, useApp, bearer } from './helpers.js';
@@ -350,6 +350,62 @@ describe('/api/habits', () => {
     expect((await patch(`/api/habits/${ctx.id.read}`, { slug: 'renamed' })).status).toBe(400);
     expect((await patch(`/api/habits/${ctx.id.read}`, {})).status).toBe(400);
     expect((await patch('/api/habits/9999', { label: 'x' })).status).toBe(404);
+  });
+
+  it('patches the schedule alone, fields alone, or both in one request', async () => {
+    const url = `/api/habits/${ctx.id.read}`;
+    const mwf = { kind: 'weekdays', days: [1, 3, 5] };
+
+    const a = await patch(url, { schedule: mwf, scheduleFrom: TODAY });
+    expect(a.status).toBe(200);
+    expect(a.body).toMatchObject({ label: 'Read 20 minutes', schedule: mwf, scheduleFrom: TODAY });
+
+    const b = await patch(url, { label: 'Read two pages' });
+    expect(b.status).toBe(200);
+    expect(b.body).toMatchObject({ label: 'Read two pages', schedule: mwf, scheduleFrom: TODAY });
+
+    const eod = { kind: 'every_other_day', anchor: TOMORROW };
+    const c = await patch(url, { label: 'Read', sort: 10, schedule: eod, scheduleFrom: TOMORROW });
+    expect(c.status).toBe(200);
+    expect(c.body).toMatchObject({ label: 'Read', sort: 10, schedule: eod, scheduleFrom: TOMORROW });
+    expect((await ctx.store.getHabit(ctx.id.read))?.schedules).toEqual([
+      { from: null, schedule: { kind: 'daily' } },
+      { from: TODAY, schedule: mwf },
+      { from: TOMORROW, schedule: eod },
+    ]);
+  });
+
+  it('a failed habit update leaves the schedule unchanged', async () => {
+    const before = await ctx.store.getHabit(ctx.id.read);
+    ctx.store.failNextHabitUpdate(new Error('injected: UPDATE habits failed'));
+    // The error handler logs a 500; keep the injected one out of the test output.
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const res = await patch(`/api/habits/${ctx.id.read}`, {
+      label: 'Never lands',
+      schedule: { kind: 'weekdays', days: [1, 3, 5] },
+      scheduleFrom: TODAY,
+    });
+    logged.mockRestore();
+    expect(res.status).toBe(500);
+    expect(await ctx.store.getHabit(ctx.id.read)).toEqual(before);
+    // The failure was one-off: the same request then lands whole.
+    const again = await patch(`/api/habits/${ctx.id.read}`, {
+      label: 'Lands',
+      schedule: { kind: 'weekdays', days: [1, 3, 5] },
+      scheduleFrom: TODAY,
+    });
+    expect(again.body).toMatchObject({ label: 'Lands', schedule: { kind: 'weekdays', days: [1, 3, 5] } });
+  });
+
+  it('404s a patch of an unknown id, with or without a schedule, and writes nothing', async () => {
+    const before = await ctx.store.listHabits({ includeRetired: true });
+    const schedule = { kind: 'weekdays', days: [1] };
+    expect((await patch('/api/habits/9999', { schedule })).status).toBe(404);
+    expect((await patch('/api/habits/9999', { label: 'x', schedule })).status).toBe(404);
+    expect((await patch('/api/habits/9999', { retired: true })).status).toBe(404);
+    expect((await patch('/api/habits/abc', { label: 'x' })).status).toBe(400);
+    expect((await patch(`/api/habits/${ctx.id.read}`, { scheduleFrom: TODAY })).status).toBe(400);
+    expect(await ctx.store.listHabits({ includeRetired: true })).toEqual(before);
   });
 
   it('has no hard delete', async () => {

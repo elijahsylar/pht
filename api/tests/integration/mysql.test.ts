@@ -1,11 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import mysql, { type Connection, type Pool, type RowDataPacket } from 'mysql2/promise';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../src/app.js';
 import { createMysqlStore } from '../../src/db/mysqlStore.js';
 import { SEED_HABITS, applySchema } from '../../src/db/schema.js';
@@ -391,6 +392,50 @@ describe.skipIf(!enabled)('MySQL 8.4', () => {
       expect(await count(p, 'checks')).toBe(6);
     });
 
+    // sort is an INT column: a value past its range passes the request schema
+    // and makes the UPDATE fail in strict mode, after the schedule was written.
+    it('PATCH /habits/:id is one transaction: a failed update leaves the schedule unchanged', async () => {
+      const p = await freshDb();
+      await migrate(p);
+      const store = createMysqlStore(p);
+      const stretch = (await store.listHabits({ includeRetired: true })).find((h) => h.slug === 'stretch')!;
+      const mwf = { kind: 'weekdays' as const, days: [1, 3, 5] };
+      const eod = { kind: 'every_other_day' as const, anchor: '2026-10-12' };
+      // One earlier change, so there is a history row to lose.
+      const before = await store.patchHabit(stretch.id, { label: 'Before' }, { schedule: mwf, from: '2026-10-01' });
+      expect(await count(p, 'habit_schedule_history')).toBe(1);
+
+      await expect(
+        store.patchHabit(stretch.id, { label: 'Never lands', sort: 3_000_000_000 }, { schedule: eod, from: '2026-10-12' }),
+      ).rejects.toMatchObject({ code: 'ER_WARN_DATA_OUT_OF_RANGE' });
+      expect(await store.getHabit(stretch.id)).toEqual(before);
+      expect(await count(p, 'habit_schedule_history')).toBe(1);
+
+      // The same through the route: a 500, and still nothing written.
+      const secret = randomBytes(24).toString('hex');
+      process.env.JWT_SECRET = secret;
+      const jwt = (await import('jsonwebtoken')).default;
+      const auth = { Authorization: `Bearer ${jwt.sign({ username: 'owner', stage: 'full' }, secret)}` };
+      const app = createApp(store, { log: false });
+      const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const failed = await request(app)
+        .patch(`/api/habits/${stretch.id}`)
+        .set(auth)
+        .send({ sort: 3_000_000_000, schedule: eod, scheduleFrom: '2026-10-12' });
+      logged.mockRestore();
+      expect(failed.status).toBe(500);
+      expect(await store.getHabit(stretch.id)).toEqual(before);
+
+      const ok = await request(app)
+        .patch(`/api/habits/${stretch.id}`)
+        .set(auth)
+        .send({ sort: 9, schedule: eod, scheduleFrom: '2026-10-12' });
+      expect(ok.status).toBe(200);
+      expect(ok.body).toMatchObject({ label: 'Before', sort: 9, schedule: eod, scheduleFrom: '2026-10-12' });
+      expect(await count(p, 'habit_schedule_history')).toBe(2);
+      expect((await request(app).patch('/api/habits/999999').set(auth).send({ schedule: eod })).status).toBe(404);
+    });
+
     // The rotate script's program, lifted out of the heredoc and run against
     // this throwaway database — never over ssh, never against the server.
     it('rotate-token program stores a hash the API then accepts', async () => {
@@ -453,7 +498,7 @@ describe.skipIf(!enabled)('MySQL 8.4', () => {
       await migrate(contractPool);
     } else {
       await contractPool.query('SET FOREIGN_KEY_CHECKS = 0');
-      for (const t of ['checks', 'day_notes', 'habits']) {
+      for (const t of ['checks', 'day_notes', 'habit_schedule_history', 'habits']) {
         await contractPool.query(`TRUNCATE TABLE \`${t}\``);
       }
       await contractPool.query('SET FOREIGN_KEY_CHECKS = 1');

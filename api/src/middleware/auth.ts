@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import type { SettingsStore } from '../db/store.js';
 import { API_TOKEN_HASH_KEY, apiTokenMatches, looksLikeApiToken } from '../lib/apiToken.js';
 import {
+  JWT_ALGORITHM,
   RENEW_HEADER,
   SESSIONS_VALID_AFTER_KEY,
   issueSessionToken,
@@ -34,7 +35,10 @@ function bearer(req: Request): string | null {
 function verifyJwt(token: string | null): { payload: SessionPayload } | { error: string } {
   if (!token) return { error: 'missing token' };
   try {
-    return { payload: jwt.verify(token, process.env.JWT_SECRET as string) as SessionPayload };
+    const payload = jwt.verify(token, process.env.JWT_SECRET as string, {
+      algorithms: [JWT_ALGORITHM],
+    });
+    return { payload: payload as SessionPayload };
   } catch {
     return { error: 'invalid token' };
   }

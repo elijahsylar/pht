@@ -123,6 +123,52 @@ export function storeContract(name: string, makeStore: () => Promise<Store>): vo
       expect(await store.setSchedule(999_999, mwf, '2026-10-01')).toBeNull();
     });
 
+    it('patches fields and schedule in one call, either alone or both', async () => {
+      const mwf = { kind: 'weekdays' as const, days: [1, 3, 5] };
+      const eod = { kind: 'every_other_day' as const, anchor: '2026-10-12' };
+
+      // Fields only: as updateHabit, the schedule stays.
+      const a = await store.patchHabit(stretch, { label: 'Stretch 10 min', sort: 9 });
+      expect(a).toMatchObject({ label: 'Stretch 10 min', sort: 9, rampText: null });
+      expect(a?.schedules).toEqual([{ from: null, schedule: { kind: 'daily' } }]);
+
+      // Schedule only: as setSchedule, the fields stay.
+      const b = await store.patchHabit(stretch, {}, { schedule: mwf, from: '2026-10-01' });
+      expect(b).toMatchObject({ label: 'Stretch 10 min', sort: 9 });
+      expect(b?.schedule).toEqual(mwf);
+      expect(b?.schedules).toEqual([
+        { from: null, schedule: { kind: 'daily' } },
+        { from: '2026-10-01', schedule: mwf },
+      ]);
+
+      // Both together.
+      const c = await store.patchHabit(
+        stretch,
+        { label: 'Stretch', rampText: 'then 15', retired: true },
+        { schedule: eod, from: '2026-10-12' },
+      );
+      expect(c).toMatchObject({ label: 'Stretch', rampText: 'then 15', sort: 9 });
+      expect(c?.retiredAt).toBeInstanceOf(Date);
+      expect(c?.schedules).toEqual([
+        { from: null, schedule: { kind: 'daily' } },
+        { from: '2026-10-01', schedule: mwf },
+        { from: '2026-10-12', schedule: eod },
+      ]);
+      // What was returned is what is stored, and other habits are unaffected.
+      expect(await store.getHabit(stretch)).toEqual(c);
+      expect(await store.getHabit(read)).toMatchObject({ label: 'Read 20 minutes', schedule: { kind: 'daily' } });
+    });
+
+    it('patchHabit on an unknown id returns null and writes nothing', async () => {
+      const before = await store.listHabits({ includeRetired: true });
+      const change = { schedule: { kind: 'weekdays' as const, days: [1] }, from: '2026-10-01' };
+      expect(await store.patchHabit(999_999, { label: 'x' })).toBeNull();
+      expect(await store.patchHabit(999_999, { label: 'x' }, change)).toBeNull();
+      expect(await store.patchHabit(999_999, {}, change)).toBeNull();
+      expect(await store.getHabit(999_999)).toBeNull();
+      expect(await store.listHabits({ includeRetired: true })).toEqual(before);
+    });
+
     it('checks and unchecks idempotently', async () => {
       await store.addCheck(stretch, '2026-10-13');
       await store.addCheck(stretch, '2026-10-13');

@@ -89,23 +89,24 @@ export function habitsRouter(store: Store): Router {
   });
 
   // PATCH /:id — label, sort, rampText, `retired: true|false`, and
-  // `schedule` (from `scheduleFrom`, the client's today, on).
+  // `schedule` (from `scheduleFrom`, the client's today, on). One store call,
+  // so a schedule change and a field change land together or not at all.
   router.patch('/:id', jwtOnly, async (req, res, next) => {
     try {
       const id = idParam.parse(req.params.id);
       const body = habitPatchSchema.parse(req.body);
-      if (body.schedule !== undefined) {
-        const from = body.scheduleFrom ?? (await resolveToday(store));
-        if (!(await store.setSchedule(id, normalizeSchedule(body.schedule), from))) {
-          return res.status(404).json({ error: 'no such habit' });
-        }
-      }
-      const habit = await store.updateHabit(id, {
-        label: body.label,
-        sort: body.sort,
-        rampText: body.rampText,
-        retired: body.retired,
-      });
+      const change =
+        body.schedule === undefined
+          ? undefined
+          : {
+              schedule: normalizeSchedule(body.schedule),
+              from: body.scheduleFrom ?? (await resolveToday(store)),
+            };
+      const habit = await store.patchHabit(
+        id,
+        { label: body.label, sort: body.sort, rampText: body.rampText, retired: body.retired },
+        change,
+      );
       if (!habit) return res.status(404).json({ error: 'no such habit' });
       res.json(habitJson(habit));
     } catch (err) {

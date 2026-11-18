@@ -1,4 +1,4 @@
-import type { Pool, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+import type { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { toIsoDate } from '../lib/dates.js';
 import {
   scheduleFromColumns,
@@ -15,6 +15,7 @@ import {
   type Learned,
   type ImportReport,
   type NewHabit,
+  type ScheduleChange,
   type Store,
   type StoredCandidate,
 } from './store.js';
@@ -169,9 +170,10 @@ function toArticle(r: RowDataPacket): DailyArticle {
 const epoch = (d: Date) => d.getTime() / 1000;
 
 export function createMysqlStore(pool: Pool): Store {
-  async function withHistory(rows: HabitRow[]): Promise<Habit[]> {
+  // `db` is the pool, or the connection holding the transaction in progress.
+  async function withHistory(rows: HabitRow[], db: Pool | PoolConnection = pool): Promise<Habit[]> {
     if (!rows.length) return [];
-    const [past] = await pool.query<ScheduleHistoryRow[]>(
+    const [past] = await db.query<ScheduleHistoryRow[]>(
       `SELECT habit_id, from_date, schedule, schedule_anchor, schedule_days
        FROM habit_schedule_history WHERE habit_id IN (?) ORDER BY habit_id, seq`,
       [rows.map((r) => r.id)],
@@ -185,6 +187,55 @@ export function createMysqlStore(pool: Pool): Store {
       [id],
     );
     return rows.length ? (await withHistory(rows))[0] : null;
+  }
+
+  async function writeFields(db: Pool | PoolConnection, id: number, patch: HabitPatch): Promise<void> {
+    const sets: string[] = [];
+    const args: unknown[] = [];
+    if (patch.label !== undefined) {
+      sets.push('label = ?');
+      args.push(patch.label);
+    }
+    if (patch.sort !== undefined) {
+      sets.push('sort = ?');
+      args.push(patch.sort);
+    }
+    if (patch.rampText !== undefined) {
+      sets.push('ramp_text = ?');
+      args.push(patch.rampText);
+    }
+    // Retiring an already-retired habit keeps its original retired_at.
+    if (patch.retired === true) sets.push('retired_at = COALESCE(retired_at, CURRENT_TIMESTAMP)');
+    if (patch.retired === false) sets.push('retired_at = NULL');
+    if (sets.length) {
+      await db.query(`UPDATE habits SET ${sets.join(', ')} WHERE id = ?`, [...args, id]);
+    }
+  }
+
+  // Inside the caller's transaction. Rewrites the whole timeline: it is a
+  // handful of rows at most.
+  async function writeSchedule(conn: PoolConnection, id: number, spans: ScheduleSpan[]): Promise<void> {
+    const current = spans[spans.length - 1];
+    const cols = scheduleToColumns(current.schedule);
+    await conn.query('DELETE FROM habit_schedule_history WHERE habit_id = ?', [id]);
+    const past = spans.slice(0, -1);
+    if (past.length) {
+      await conn.query(
+        `INSERT INTO habit_schedule_history
+           (habit_id, seq, from_date, schedule, schedule_anchor, schedule_days) VALUES ?`,
+        [
+          past.map((p, i) => {
+            const c = scheduleToColumns(p.schedule);
+            return [id, i, p.from, c.kind, c.anchor, c.days];
+          }),
+        ],
+      );
+    }
+    await conn.query(
+      `UPDATE habits SET schedule = ?, schedule_anchor = ?, schedule_days = ?, schedule_from = ?
+       WHERE id = ?`,
+      [cols.kind, cols.anchor, cols.days, current.from, id],
+    );
   }
 
   async function getLearned(date: string): Promise<Learned | null> {
@@ -248,26 +299,7 @@ export function createMysqlStore(pool: Pool): Store {
     },
 
     async updateHabit(id: number, patch: HabitPatch) {
-      const sets: string[] = [];
-      const args: unknown[] = [];
-      if (patch.label !== undefined) {
-        sets.push('label = ?');
-        args.push(patch.label);
-      }
-      if (patch.sort !== undefined) {
-        sets.push('sort = ?');
-        args.push(patch.sort);
-      }
-      if (patch.rampText !== undefined) {
-        sets.push('ramp_text = ?');
-        args.push(patch.rampText);
-      }
-      // Retiring an already-retired habit keeps its original retired_at.
-      if (patch.retired === true) sets.push('retired_at = COALESCE(retired_at, CURRENT_TIMESTAMP)');
-      if (patch.retired === false) sets.push('retired_at = NULL');
-      if (sets.length) {
-        await pool.query(`UPDATE habits SET ${sets.join(', ')} WHERE id = ?`, [...args, id]);
-      }
+      await writeFields(pool, id, patch);
       return getHabit(id);
     },
 
@@ -275,31 +307,38 @@ export function createMysqlStore(pool: Pool): Store {
       const habit = await getHabit(id);
       if (!habit) return null;
       const spans = withSchedule(habit.schedules, schedule, from);
-      const current = spans[spans.length - 1];
-      const cols = scheduleToColumns(current.schedule);
       const conn = await pool.getConnection();
       try {
         await conn.beginTransaction();
-        // Rewrite the whole timeline: it is a handful of rows at most.
-        await conn.query('DELETE FROM habit_schedule_history WHERE habit_id = ?', [id]);
-        const past = spans.slice(0, -1);
-        if (past.length) {
-          await conn.query(
-            `INSERT INTO habit_schedule_history
-               (habit_id, seq, from_date, schedule, schedule_anchor, schedule_days) VALUES ?`,
-            [
-              past.map((p, i) => {
-                const c = scheduleToColumns(p.schedule);
-                return [id, i, p.from, c.kind, c.anchor, c.days];
-              }),
-            ],
-          );
-        }
-        await conn.query(
-          `UPDATE habits SET schedule = ?, schedule_anchor = ?, schedule_days = ?, schedule_from = ?
-           WHERE id = ?`,
-          [cols.kind, cols.anchor, cols.days, current.from, id],
+        await writeSchedule(conn, id, spans);
+        await conn.commit();
+      } catch (err) {
+        await conn.rollback();
+        throw err;
+      } finally {
+        conn.release();
+      }
+      return getHabit(id);
+    },
+
+    async patchHabit(id: number, patch: HabitPatch, change?: ScheduleChange) {
+      const conn = await pool.getConnection();
+      try {
+        await conn.beginTransaction();
+        // Locks the row, so the timeline read here is the one rewritten below.
+        const [rows] = await conn.query<HabitRow[]>(
+          `SELECT ${HABIT_COLS} FROM habits WHERE id = ? LIMIT 1 FOR UPDATE`,
+          [id],
         );
+        if (!rows.length) {
+          await conn.rollback();
+          return null;
+        }
+        if (change) {
+          const [habit] = await withHistory(rows, conn);
+          await writeSchedule(conn, id, withSchedule(habit.schedules, change.schedule, change.from));
+        }
+        await writeFields(conn, id, patch);
         await conn.commit();
       } catch (err) {
         await conn.rollback();

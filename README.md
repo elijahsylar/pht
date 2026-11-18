@@ -40,6 +40,7 @@ flowchart LR
     A --> WS["AI Wire sources<br/>HN, RSS/Atom, GitHub releases"]
 ```
 
+- **Loopback only.** The API listens on `127.0.0.1` unless `LISTEN_HOST` says otherwise; nginx on the same machine is its only network client.
 - **One persistence interface.** Every route talks to a `Store`. `mysqlStore.ts` is the real one; `tests/fakeStore.ts` is an in-memory one typed against the same interface, so changing the interface breaks the test build until the fake follows. One behaviour suite (`tests/storeContract.ts`) runs against both: against the fake in the normal run, and against a real MySQL 8.4 in Docker in `npm run test:mysql`.
 - **Pure domain modules.** Streaks, schedules (daily, every other day, chosen weekdays; rest days never break a streak) and date handling live in `api/src/lib/` with no I/O. "Today" always comes from the user's configured IANA time zone, never the server's clock zone.
 - **The page** (`web/`) is plain TypeScript with a small shared store and no UI framework. Its Content-Security-Policy allows only same-origin scripts, styles, fonts and requests, with no inline code; the deploy script refuses a build that weakens it.
@@ -54,7 +55,7 @@ flowchart LR
 
 ## Technically notable parts
 
-**Authentication.** Login is two steps: password, then a security answer, both stored as bcrypt hashes. The resulting browser session is a 30-day JWT that slides: a request in the token's last 7 days gets a fresh token in a response header. Logging out or changing the password records a cutoff instant, and every browser token issued before it is refused (millisecond issue times, because JWT `iat` is too coarse to order a token against a logout in the same second). Both login steps are attempt-limited per client IP and per account, with doubling lockouts; an attempt is counted before the credential is checked, so parallel requests cannot outrun the limit, and an address that recently completed a full login is exempt from the account lock, so knowing the user name is not enough to lock the owner out from an address they recently logged in from. Non-browser clients use one long-lived API token, stored only as a hash and rotated with a script. The API sends no CORS headers at all.
+**Authentication.** Login is two steps: password, then a security answer, both stored as bcrypt hashes. The resulting browser session is a 30-day JWT that slides: a request in the token's last 7 days gets a fresh token in a response header. Logging out or changing the password records a cutoff instant, and every browser token issued before it is refused (millisecond issue times, because JWT `iat` is too coarse to order a token against a logout in the same second). Both login steps are attempt-limited per client IP and per account, with doubling lockouts; an attempt is counted before the credential is checked, so parallel requests cannot outrun the limit, and an address that recently completed a full login is exempt from the account lock, so knowing the user name is not enough to lock the owner out from an address they recently logged in from. Tokens are signed with HS256 and verified against that one algorithm only, so a token signed any other way is refused. Non-browser clients use one long-lived API token, stored only as a hash and rotated with a script. The API sends no CORS headers at all.
 
 **AI Wire without a model.** One article a day, the same on every device. Sources are fetched at most once per 15 minutes per process from an allowlist of hosts (robots.txt is honoured for index pages), deduplicated by canonical URL and by title hash, passed through a keyword "career gate" with topic tiers and competitor rules, then ranked. Candidates stay in a 24-hour pool, so one failing source does not empty the day. There is deliberately no LLM call in the selection.
 
@@ -64,8 +65,8 @@ flowchart LR
 
 | Suite | Command | Result |
 |---|---|---|
-| API unit and route tests (fake store) | `cd api && npm test` | 271 passed, 59 skipped (302 passed with a production web build at the path the frontend-artifact tests read: their 31 checks need one) |
-| API on real MySQL 8.4 (Docker) | `cd api && npm run test:mysql` | 28 passed |
+| API unit and route tests (fake store) | `cd api && npm test` | 287 passed, 62 skipped (318 passed with a production web build at the path the frontend-artifact tests read: their 31 checks need one) |
+| API on real MySQL 8.4 (Docker) | `cd api && npm run test:mysql` | 31 passed |
 | Web unit tests | `cd web && npm test` | 61 passed |
 | Browser walkthrough (Chrome walkthrough, Chrome and Firefox grid checks) | `cd web && npm run ui:check` | 654 checks passed |
 
@@ -90,6 +91,8 @@ cd api
 npm run migrate
 npm run dev
 ```
+
+The API listens on `127.0.0.1:4100`. `PORT` changes the port and `LISTEN_HOST` the address; leave it on loopback unless something other than nginx on the same machine has to reach the API directly.
 
 ### Tests
 

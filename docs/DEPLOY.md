@@ -1,6 +1,6 @@
 # Deploying PHT
 
-PHT runs on one small Linux server: nginx serves the static page and proxies `/api` to the Node API (managed by pm2), with MySQL on localhost. Everything in `api/ops/` is plain bash and is run from a developer machine over ssh.
+PHT runs on one small Linux server: nginx serves the static page and proxies `/api` to the Node API (managed by pm2), with MySQL on localhost. The API listens on `127.0.0.1` only (`LISTEN_HOST` in its `.env` changes that), so nginx is the one way in. Everything in `api/ops/` is plain bash and is run from a developer machine over ssh.
 
 ## Configuration
 

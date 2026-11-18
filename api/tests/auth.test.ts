@@ -1,3 +1,4 @@
+import jwt, { type Algorithm } from 'jsonwebtoken';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import {
@@ -6,6 +7,7 @@ import {
   generateApiToken,
   hashApiToken,
 } from '../src/lib/apiToken.js';
+import { issueSessionToken } from '../src/lib/session.js';
 import { ADMIN, PASSWORD, TODAY, bearer, partialJwt, useApp } from './helpers.js';
 
 const ctx = useApp();
@@ -186,6 +188,61 @@ describe('JWT', () => {
     const full = bearer(ok.body.token);
     expect((await call('get', '/api/auth/verify', full)).status).toBe(200);
     expect((await call('get', `/api/today?date=${TODAY}`, full)).status).toBe(200);
+  });
+});
+
+describe('JWT algorithm', () => {
+  const secret = () => process.env.JWT_SECRET as string;
+  const signed = (stage: 'full' | 'partial', algorithm: Algorithm) =>
+    bearer(jwt.sign({ username: ADMIN, stage, iatMs: Date.now() }, secret(), { algorithm, expiresIn: '5m' }));
+  // An unsigned token, built by hand: header says alg none, empty signature.
+  const unsigned = (stage: 'full' | 'partial') => {
+    const part = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const now = Math.floor(Date.now() / 1000);
+    const body = { username: ADMIN, stage, iatMs: Date.now(), iat: now, exp: now + 300 };
+    return bearer(`${part({ alg: 'none', typ: 'JWT' })}.${part(body)}.`);
+  };
+  const header = (token: string) => JSON.parse(Buffer.from(token.split('.')[0], 'base64url').toString());
+  const fullRoute = (h: Record<string, string>) => call('get', '/api/auth/verify', h);
+  const partialRoute = (h: Record<string, string>) =>
+    call('post', '/api/auth/verify-security', h, { answer: 'name' });
+
+  it('accepts HS256 tokens at both login stages', async () => {
+    expect((await fullRoute(signed('full', 'HS256'))).status).toBe(200);
+    expect((await partialRoute(signed('partial', 'HS256'))).status).toBe(200);
+  });
+
+  it('refuses a full token signed with another HMAC algorithm and the same secret', async () => {
+    for (const alg of ['HS384', 'HS512'] as const) {
+      const res = await fullRoute(signed('full', alg));
+      expect(res.status, alg).toBe(401);
+      expect(res.body, alg).toEqual({ error: 'invalid token' });
+      expect((await call('get', '/api/habits', signed('full', alg))).status, alg).toBe(401);
+    }
+  });
+
+  it('refuses a partial token signed with another HMAC algorithm and the same secret', async () => {
+    for (const alg of ['HS384', 'HS512'] as const) {
+      const res = await partialRoute(signed('partial', alg));
+      expect(res.status, alg).toBe(401);
+      expect(res.body, alg).toEqual({ error: 'invalid token' });
+    }
+  });
+
+  it('refuses an unsigned alg none token at both stages', async () => {
+    expect((await fullRoute(unsigned('full'))).status).toBe(401);
+    expect((await call('get', '/api/habits', unsigned('full'))).status).toBe(401);
+    expect((await partialRoute(unsigned('partial'))).status).toBe(401);
+  });
+
+  it('signs the partial, full and renewed tokens with HS256', async () => {
+    const login = await call('post', '/api/auth/login', {}, { username: ADMIN, password: PASSWORD });
+    expect(header(login.body.partialToken)).toMatchObject({ alg: 'HS256' });
+    const ok = await call('post', '/api/auth/verify-security', bearer(login.body.partialToken), {
+      answer: 'name',
+    });
+    expect(header(ok.body.token)).toMatchObject({ alg: 'HS256' });
+    expect(header(issueSessionToken(ADMIN))).toMatchObject({ alg: 'HS256' });
   });
 });
 

@@ -5,11 +5,12 @@ import {
   type Learned,
   type WireDud,
   type Habit,
+  type HabitPatch,
   type Store,
   type StoredCandidate,
 } from '../src/db/store.js';
 import { SEED_HABITS } from '../src/db/schema.js';
-import { DAILY, withSchedule } from '../src/lib/schedule.js';
+import { DAILY, withSchedule, type Schedule } from '../src/lib/schedule.js';
 
 // In-memory Store for the route tests. Typed as Store, so a method added to
 // or changed in src/db/store.ts stops `npm test` at the tsc step until this
@@ -18,6 +19,9 @@ import { DAILY, withSchedule } from '../src/lib/schedule.js';
 export interface FakeStore extends Store {
   // Test-only: place a habit's creation at a chosen instant.
   setCreatedAt(id: number, at: Date): void;
+  // Test-only: the next write of a habit's fields (updateHabit, or that step
+  // of patchHabit) throws `err`, the way a failing UPDATE would.
+  failNextHabitUpdate(err: Error): void;
 }
 
 export function createFakeStore(opts: { seed?: boolean } = {}): FakeStore {
@@ -30,12 +34,33 @@ export function createFakeStore(opts: { seed?: boolean } = {}): FakeStore {
   const wire = new Map<string, StoredCandidate>();
   const articles = new Map<string, DailyArticle>();
   let nextId = 1;
+  let habitUpdateFailure: Error | null = null;
 
   const clone = (h: Habit): Habit => ({
     ...h,
     schedules: h.schedules.map((s) => ({ ...s })),
   });
   const find = (id: number) => habits.find((h) => h.id === id) ?? null;
+
+  function applyFields(h: Habit, patch: HabitPatch): void {
+    if (habitUpdateFailure) {
+      const err = habitUpdateFailure;
+      habitUpdateFailure = null;
+      throw err;
+    }
+    if (patch.label !== undefined) h.label = patch.label;
+    if (patch.sort !== undefined) h.sort = patch.sort;
+    if (patch.rampText !== undefined) h.rampText = patch.rampText;
+    if (patch.retired === true) h.retiredAt ??= new Date();
+    if (patch.retired === false) h.retiredAt = null;
+  }
+
+  function applySchedule(h: Habit, schedule: Schedule, from: string): void {
+    const spans = withSchedule(h.schedules, schedule, from);
+    spans[0] = { ...spans[0], from: null };
+    h.schedules = spans;
+    h.schedule = spans[spans.length - 1].schedule;
+  }
 
   function insert(slug: string, label: string, sort: number | undefined, rampText: string | null) {
     if (habits.some((h) => h.slug === slug)) throw new DuplicateSlugError(slug);
@@ -61,6 +86,9 @@ export function createFakeStore(opts: { seed?: boolean } = {}): FakeStore {
     setCreatedAt(id, at) {
       const h = find(id);
       if (h) h.createdAt = at;
+    },
+    failNextHabitUpdate(err) {
+      habitUpdateFailure = err;
     },
 
     async getSetting(key) {
@@ -89,22 +117,26 @@ export function createFakeStore(opts: { seed?: boolean } = {}): FakeStore {
     async updateHabit(id, patch) {
       const h = find(id);
       if (!h) return null;
-      if (patch.label !== undefined) h.label = patch.label;
-      if (patch.sort !== undefined) h.sort = patch.sort;
-      if (patch.rampText !== undefined) h.rampText = patch.rampText;
-      if (patch.retired === true) h.retiredAt ??= new Date();
-      if (patch.retired === false) h.retiredAt = null;
+      applyFields(h, patch);
       return clone(h);
     },
 
     async setSchedule(id, schedule, from) {
       const h = find(id);
       if (!h) return null;
-      const spans = withSchedule(h.schedules, schedule, from);
-      spans[0] = { ...spans[0], from: null };
-      h.schedules = spans;
-      h.schedule = spans[spans.length - 1].schedule;
+      applySchedule(h, schedule, from);
       return clone(h);
+    },
+
+    async patchHabit(id, patch, change) {
+      const h = find(id);
+      if (!h) return null;
+      // Work on a copy and swap it in at the end: a throw leaves `h` as it was.
+      const draft = clone(h);
+      if (change) applySchedule(draft, change.schedule, change.from);
+      applyFields(draft, patch);
+      habits[habits.indexOf(h)] = draft;
+      return clone(draft);
     },
 
     async addCheck(habitId, date) {
