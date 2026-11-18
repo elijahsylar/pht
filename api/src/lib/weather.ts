@@ -85,7 +85,7 @@ export function forecastUrl(lat: number, lon: number, timezone: string): string 
     timezone,
     forecast_days: '7',
   });
-  return `https://${OPEN_METEO_HOST}/v1/forecast?${q}`;
+  return `https://${OPEN_METEO_HOST}/v1/forecast?${q.toString()}`;
 }
 
 // Open-Meteo's daily block → days. Anything malformed throws, which the

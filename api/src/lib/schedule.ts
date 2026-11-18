@@ -1,5 +1,3 @@
-import { addDays } from './dates.js';
-
 // Which days a habit is due. Pure: no DB, no clock.
 //
 // - daily: every day (every habit before schedules existed).

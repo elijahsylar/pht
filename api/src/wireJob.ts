@@ -111,7 +111,7 @@ async function main() {
   }
   const repick = args[0] === '--repick';
   const arg = repick ? args[1] : args[0];
-  if (arg !== undefined && !isIsoDate(arg)) throw new Error(`not a date: ${arg}`);
+  if (arg !== undefined && !isIsoDate(arg)) throw new Error(`not a date: ${String(arg)}`);
   const [{ getAppTimeZone }, { todayInZone }, { createWireService }] = await Promise.all([
     import('./db/settings.js'),
     import('./lib/dates.js'),

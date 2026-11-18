@@ -35,7 +35,7 @@ const ok = (body: unknown) =>
   new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
 // A scriptable upstream: each call takes the next answer, recording the URL.
-function upstream(...answers: (unknown | Error | number)[]) {
+function upstream(...answers: unknown[]) {
   const calls: { url: string; init?: RequestInit }[] = [];
   const fetch = (async (url: string | URL | Request, init?: RequestInit) => {
     calls.push({ url: String(url), init });

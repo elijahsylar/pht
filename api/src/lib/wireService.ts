@@ -47,7 +47,7 @@ export function loadWireConfig(env: Record<string, string | undefined> = process
     try {
       return wireConfigSchema.parse(JSON.parse(readFileSync(file, 'utf8')));
     } catch (err) {
-      console.error(`[wire] WIRE_CONFIG unusable, using the built-in list: ${err instanceof Error ? err.message : err}`);
+      console.error(`[wire] WIRE_CONFIG unusable, using the built-in list: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
   return wireConfigSchema.parse(defaultConfig);
@@ -140,7 +140,7 @@ async function fetchSource(cfg: WireConfig, hosts: Set<string>, id: string, doFe
         hitsPerPage: '100',
       });
       try {
-        const body = await fetchAllowed(`${cfg.hackerNews.url}?${params}`, { ...base, accept: 'application/json' });
+        const body = await fetchAllowed(`${cfg.hackerNews.url}?${params.toString()}`, { ...base, accept: 'application/json' });
         out.push(...parseHn(JSON.parse(body), cfg, q.minPoints));
         ok += 1;
       } catch (err) {
@@ -382,7 +382,7 @@ export function startWireSchedule(store: Store, wire: WireService, now: () => nu
       const hhmm = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(at);
       if (hhmm >= JOB_TIME) await wire.ensure(dateInZone(at, tz));
     } catch (err) {
-      console.error(`[wire] scheduled run failed: ${err instanceof Error ? err.message : err}`);
+      console.error(`[wire] scheduled run failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       running = false;
     }

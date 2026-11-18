@@ -155,7 +155,7 @@ export function canonicalUrl(raw: string): string | null {
   }
   if (path.length > 1) path = path.replace(/\/+$/, '');
   const params = [...u.searchParams.entries()].sort(([a, x], [b, y]) => a.localeCompare(b) || x.localeCompare(y));
-  const query = params.length ? `?${new URLSearchParams(params)}` : '';
+  const query = params.length ? `?${new URLSearchParams(params).toString()}` : '';
   return `https://${host}${path}${query}`;
 }
 

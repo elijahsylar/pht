@@ -29,7 +29,7 @@ export function fakeOpenMeteoFetch(start: () => string): typeof fetch {
     new Response(JSON.stringify(openMeteoBody(start())), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
-    })) as typeof fetch;
+    }));
 }
 
 // Placeholder location for tests: obviously not a real place of interest.

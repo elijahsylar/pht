@@ -50,6 +50,7 @@ flowchart LR
 - API: Node.js, Express 4, TypeScript, Zod, mysql2, bcrypt, jsonwebtoken
 - Database: MySQL 8.4
 - Web: TypeScript, Vite, 98.css, DSEG fonts
+- Lint: ESLint with the typescript-eslint type-aware rules, in both packages and in CI
 - Tests: Vitest and Supertest (API), Vitest (web), Playwright with Chrome and Firefox (UI walkthrough), Docker for the real-MySQL suite
 - Ops: bash, nginx, pm2, cron, systemd timers
 
@@ -100,6 +101,7 @@ The API listens on `127.0.0.1:4100`. `PORT` changes the port and `LISTEN_HOST` t
 scripts/test.sh                 # installs dependencies on first run, then API + web unit and route tests
 cd api && npm run test:mysql    # needs Docker and the mysql:8.4 image
 cd web && npm run ui:check      # needs Google Chrome at /usr/bin/google-chrome
+(cd api && npm run lint) && (cd web && npm run lint)   # ESLint; `npm run typecheck` is the tsc check alone
 ```
 
 ## Project status

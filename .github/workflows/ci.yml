@@ -28,6 +28,12 @@ jobs:
         working-directory: api
       - run: npm ci
         working-directory: web
+      - name: API lint (ESLint)
+        run: npm run lint
+        working-directory: api
+      - name: Web lint (ESLint)
+        run: npm run lint
+        working-directory: web
       - name: API unit and route tests (fake store)
         run: npm test
         working-directory: api

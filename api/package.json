@@ -9,6 +9,8 @@
     "build": "rm -rf dist && tsc",
     "start": "node dist/index.js",
     "migrate": "tsx src/db/migrate.ts",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
     "test": "tsc -p tsconfig.test.json --noEmit && vitest run",
     "test:mysql": "bash tests/integration/run-mysql.sh",
     "dev:fake": "tsx dev/fakeServer.ts"
@@ -22,14 +24,18 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@eslint/js": "9.39.5",
     "@types/bcrypt": "^5.0.2",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.7.5",
     "@types/supertest": "^6.0.3",
+    "eslint": "9.39.5",
+    "globals": "16.5.0",
     "supertest": "^7.3.1",
     "tsx": "^4.19.1",
     "typescript": "^5.6.2",
+    "typescript-eslint": "8.73.0",
     "vite": "^5.4.21",
     "vitest": "^3.2.7"
   }

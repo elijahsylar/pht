@@ -73,7 +73,7 @@ export function isGridLayout(v: unknown): v is GridLayout {
   if (!minimized.every((n) => (WINDOWS as readonly unknown[]).includes(n))) return false;
   for (const n of WINDOWS) {
     const r = rects[n];
-    if (!Array.isArray(r) || r.length !== 4 || !fits(r as Rect)) return false;
+    if (!Array.isArray(r) || r.length !== 4 || !fits(r)) return false;
   }
   const l = v as GridLayout;
   return showing(l).every((n) => hits(l, n, l.rects[n]).length === 0);

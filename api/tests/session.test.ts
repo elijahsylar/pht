@@ -65,7 +65,7 @@ describe('session lifetime', () => {
     at(then);
     const res = await today(t);
     expect(res.status).toBe(200);
-    const fresh = res.headers[header] as string;
+    const fresh = res.headers[header];
     expect(fresh).toBeTruthy();
     expect(fresh).not.toBe(t);
     expect(res.headers['cache-control']).toBe('no-store');
@@ -104,7 +104,7 @@ describe('session lifetime', () => {
     });
     const res = await today(legacy);
     expect(res.status).toBe(200);
-    expect(claims(res.headers[header] as string).exp - NOW.getTime() / 1000).toBe(SESSION_TTL_SECONDS);
+    expect(claims(res.headers[header]).exp - NOW.getTime() / 1000).toBe(SESSION_TTL_SECONDS);
   });
 });
 
@@ -178,7 +178,7 @@ describe('logout', () => {
   it('kills a renewal token handed out before it', async () => {
     const t = await loginToken();
     at(NOW.getTime() + 25 * DAY);
-    const renewed = (await today(t)).headers[header] as string;
+    const renewed = (await today(t)).headers[header];
     at(NOW.getTime() + 25 * DAY + 1000);
     const out = await request(ctx.app).post('/api/auth/logout').set(bearer(renewed));
     expect(out.status).toBe(200);

@@ -74,7 +74,7 @@ export function authRouter(store: SettingsStore, limiter: AttemptLimiter = creat
   router.post('/verify-security', requirePartial(store), async (req: AuthedRequest, res, next) => {
     try {
       const { answer } = securityVerifySchema.parse(req.body);
-      const username = req.user?.username ?? (process.env.ADMIN_USERNAME as string);
+      const username: string = req.user?.username ?? (process.env.ADMIN_USERNAME as string);
       const ip = clientIp(req);
       // Always the account counter: a new partial token does not reset it.
       const gate = limiter.begin('security', ip, username);

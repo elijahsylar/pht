@@ -28,7 +28,7 @@ function setup(responses: (Response | Error)[], initial: Record<string, string> 
     return next;
   });
   const s = store(initial);
-  const api = createApi({ baseUrl: '/api/', fetch: fetchMock as typeof fetch, storage: s });
+  const api = createApi({ baseUrl: '/api/', fetch: fetchMock, storage: s });
   return { api, calls, s };
 }
 
@@ -213,7 +213,7 @@ describe('authenticated calls', () => {
     };
     const api = createApi({
       baseUrl: '/api',
-      fetch: (async () => json(200, { token: 'x' })) as typeof fetch,
+      fetch: async () => json(200, { token: 'x' }),
       storage: throwing,
     });
     expect(api.hasToken()).toBe(false);
